@@ -8,7 +8,6 @@
 // read configuration form config file.
 // need some commandline arguments like seed, mutation rate, path info.
 
-
 inline const sf::Color background = sf::Color::Black;
 inline const int tournament_size = 10;
 
