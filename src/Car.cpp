@@ -62,7 +62,7 @@ Car::Car(const Car& base)
 
 
 
-Car::Car(): Car("resources/Car.jpg") {}
+Car::Car(): Car("./resources/car.jpg") {}
 
 
 

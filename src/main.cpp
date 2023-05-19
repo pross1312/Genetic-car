@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
     int movelefts = maxMove;
 
     sf::Font arial;
-    arial.loadFromFile("C:\\Windows\\Fonts\\Arial.ttf");
+    arial.loadFromFile("resources/VictorMono.ttf");
 
     auto comp = [&path](const Car& a, const Car& b) {
         if (a.getLap() < b.getLap())
@@ -77,11 +77,11 @@ int main(int argc, char** argv) {
                     else
                         printf("Mutation = False\n");
                 }
-                else if (_event.key.code == sf::Keyboard::Up && maxMove > 30) {
+                else if (_event.key.code == sf::Keyboard::Up) {
                     maxMove += 10;
                     printf("%d\n", maxMove);
                 }
-                else if (_event.key.code == sf::Keyboard::Down) {
+                else if (_event.key.code == sf::Keyboard::Down &&  && maxMove > 30) {
                     maxMove -= 10;
                     printf("%d\n", maxMove);
                 }
