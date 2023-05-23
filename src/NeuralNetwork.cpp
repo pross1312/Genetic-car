@@ -4,9 +4,10 @@
 using namespace Eigen;
 
 NeuralNetwork::NeuralNetwork(const NeuralNetwork& base) {
+    assert(this->weights.size() == 0);
     this->topology = base.topology;
     this->activation = base.activation;
-    for (int i = 0; i < base.weights.size(); i++) {
+    for (size_t i = 0; i < base.weights.size(); i++) {
         // init random weights between -1 and 1
         this->weights.push_back(std::make_shared<MatrixXf>(*base.weights[i]));
         // change weights to between 0 and 1
@@ -14,6 +15,17 @@ NeuralNetwork::NeuralNetwork(const NeuralNetwork& base) {
         // init biases with 0
         this->biases.push_back(std::make_shared<VectorXf>(*base.biases[i]));
     }
+}
+NeuralNetwork& NeuralNetwork::operator=(const NeuralNetwork& b) {
+    this->topology = b.topology;
+    this->activation = b.activation;
+    this->weights.clear();
+    this->biases.clear();
+    for (size_t i = 0; i < b.weights.size(); i++) {
+        this->weights.push_back(std::make_shared<MatrixXf>(*b.weights[i]));
+        this->biases.push_back(std::make_shared<VectorXf>(*b.biases[i]));
+    }
+    return *this;
 }
 
 NeuralNetwork::NeuralNetwork(std::vector<int> layerSizes,
@@ -24,7 +36,7 @@ NeuralNetwork::NeuralNetwork(std::vector<int> layerSizes,
     if (*std::min_element(layerSizes.begin(), layerSizes.end()) < 1)
         throw std::invalid_argument("Layer size can't be less than 1.");
 
-    for (int i = 1; i < layerSizes.size(); i++) {
+    for (size_t i = 1; i < layerSizes.size(); i++) {
         // init random weights between -1 and 1
         weights.push_back(std::make_shared<MatrixXf>(MatrixXf::Random(layerSizes[i], layerSizes[i-1])));
         // change weights to between 0 and 1
@@ -36,7 +48,7 @@ NeuralNetwork::NeuralNetwork(std::vector<int> layerSizes,
 }
 
 void NeuralNetwork::changeRandom() {
-    for (int i = 0; i < weights.size(); i++) {
+    for (size_t i = 0; i < weights.size(); i++) {
         *weights[i] += 2 * MatrixXf::Random(weights[i]->rows(), weights[i]->cols());
         *biases[i] += 2 * VectorXf::Random(biases[i]->size());
     }
@@ -44,7 +56,7 @@ void NeuralNetwork::changeRandom() {
 
 NeuralNetwork NeuralNetwork::reproduce(const NeuralNetwork& n) const {
     NeuralNetwork temp{*this};
-    for (int i = 0; i < temp.weights.size(); i++) {
+    for (size_t i = 0; i < temp.weights.size(); i++) {
         *temp.weights[i] = (*temp.weights[i] + *n.weights[i]) * 0.5f;
         *temp.biases[i] = (*temp.biases[i] + *n.biases[i]) * 0.5f;
     }
@@ -64,7 +76,7 @@ std::ofstream& operator<<(std::ofstream& fout, const NeuralNetwork& nn) {
 }
 
 std::ifstream& operator>>(std::ifstream& fin, NeuralNetwork& nn) {
-    int n = 0;
+    size_t n = 0;
     fin >> n;
     if (n != nn.topology.size())
         throw std::runtime_error("Wrong topology size!");
@@ -89,7 +101,7 @@ std::ifstream& operator>>(std::ifstream& fin, NeuralNetwork& nn) {
 VectorXf NeuralNetwork::forward_propagate(VectorXf input) const {
     if (input.size() != topology[0])
         throw std::invalid_argument("Invalid input -- input must have same size as input layer in network.");
-    for (int i = 0; i < weights.size(); i++) {
+    for (size_t i = 0; i < weights.size(); i++) {
         input = ((*weights[i]) * input + (*biases[i])).unaryExpr(activation);
     }
     

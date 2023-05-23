@@ -9,6 +9,15 @@ class Eye {
 public:
 	Eye(unsigned distancePerRay, unsigned nRays);
 	Eye(const Eye& base) : Eye(base._distancePerRay, base._nRays) {}
+    
+    // Eye& operator=(const Eye& b) = default; 
+    Eye& operator=(const Eye& b) {
+        _distancePerRay = b._distancePerRay;
+        _nRays = b._nRays;
+        _rays = b._rays;
+        *_position = *b._position;
+        return *this;
+    }
 	~Eye() = default;
 
 	Eigen::VectorXf senseDistance(const Path& path) const;

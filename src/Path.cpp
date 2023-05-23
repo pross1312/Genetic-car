@@ -11,7 +11,7 @@ Path::Path()
 
 void Path::updatePreComputedLength() {
     const auto& vArray = _spline._splineArray;
-    int n_Spline_Vertex = vArray.getVertexCount();
+    size_t n_Spline_Vertex = vArray.getVertexCount();
     // pre calculate distance from start to every vertex of the spline
     // since there are actually n - 2 vertex as i add 1 additional start and end vertex
     // for easy implementation, and i use the last index for the whole spline length so
@@ -25,15 +25,17 @@ void Path::updatePreComputedLength() {
     // but for spline array, the first is the last and last is the first... read about it in Spline.h
     // for more information
     // so ....
-    for (int i = 1; i < _pre_computed_length.size(); i++)
+    for (size_t i = 1; i < _pre_computed_length.size(); i++)
         _pre_computed_length[i] = _pre_computed_length[i-1] +
                                     Helper::distance(vArray[i + 1].position, vArray[i].position);
 }
 
 void Path::readFromFile(const char* fName) {
     std::ifstream fin(fName);
-    if (!fin.is_open())
-        throw std::runtime_error("Can't open file to read");
+    if (!fin.is_open()) {
+        fprintf(stderr, "Can't open file to read");
+        exit(EXIT_FAILURE);
+    }
 
     _spline.readFromFile(fin);
     fin.close();
@@ -44,13 +46,13 @@ void Path::readFromFile(const char* fName) {
 
 void Path::update() {
     const sf::VertexArray& vArray = _spline._splineArray;
-    int n = vArray.getVertexCount();
+    size_t n = vArray.getVertexCount();
     if (pathShape1.getPointCount() != n - 2) {
         pathShape1.setPointCount(n - 2);
         pathShape2.setPointCount(n - 2);
     }
     int count = 0;
-    for (int i = 1; i < n - 1; i++) {
+    for (size_t i = 1; i < n - 1; i++) {
         sf::Vector2f normal1 = Helper::getNormal(vArray[i - 1].position, vArray[i].position);
         sf::Vector2f normal2 = Helper::getNormal(vArray[i].position, vArray[i + 1].position);
         sf::Vector2f normal = Helper::addVector(normal1, normal2);
@@ -66,19 +68,20 @@ void Path::update() {
 
 
 void Path::draw(sf::RenderTarget& target, sf::RenderStates state) const {
+    (void)state;
     target.draw(pathShape1);
     target.draw(pathShape2);
 }
 
 std::pair<sf::Vector2f, int> Path::getPositionOnSpline(const sf::Vector2f& position) const {
     const sf::VertexArray& vArray = _spline._splineArray;
-    int n = vArray.getVertexCount();
+    size_t n = vArray.getVertexCount();
     double minDistance = 10e9;
     sf::Vector2f projectionPoint{};
     int index = -1;
 
     // check for every single line along the spline and find projection point
-    for (int i = 1; i < n - 1; i++) {
+    for (size_t i = 1; i < n - 1; i++) {
         std::optional<sf::Vector2f> temp = Helper::pointProjectToLine(position, vArray[i].position, vArray[i + 1].position);
         if (temp.has_value()) {
             double tempDistance = Helper::distance(position, temp.value());

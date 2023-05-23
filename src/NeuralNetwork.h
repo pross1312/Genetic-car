@@ -26,6 +26,7 @@ public:
 	NeuralNetwork(const NeuralNetwork& base);
 	NeuralNetwork(std::vector<int> layerSizes, std::function<float(float)> activation);
 	Eigen::VectorXf forward_propagate(Eigen::VectorXf input) const;
+    NeuralNetwork& operator=(const NeuralNetwork& b);
 	friend std::ifstream& operator>>(std::ifstream& fin, NeuralNetwork& nn);
 	friend std::ofstream& operator<<(std::ofstream& fout, const NeuralNetwork& nn);
 	void changeRandom();

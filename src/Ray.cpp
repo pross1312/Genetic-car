@@ -45,7 +45,7 @@ std::optional<sf::Vector2f> Ray::cast(const Path& path) const {
             minDistance = tempDistance;
         }
     }
-    for (int i = 0; i < nVertex - 1; i++) {
+    for (size_t i = 0; i < nVertex - 1; i++) {
         p1 = checkAgainLine(pathShape1.getPoint(i), pathShape1.getPoint(i + 1));
         p2 = checkAgainLine(pathShape2.getPoint(i), pathShape2.getPoint(i + 1));
         if (p1.has_value()) {

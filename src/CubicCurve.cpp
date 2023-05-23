@@ -36,20 +36,21 @@ void CubicCurve::readFromFile(std::ifstream& fin) {
 }
 
 void CubicCurve::update() {
-    for (int i = 0; i < Config::nVertexs; i++) {
+    for (unsigned i = 0; i < Config::nVertexs; i++) {
         vArray[i].position = this->cubicBezierLerp(1.0f * i / (Config::nVertexs - 1));
         vArray[i].color = Config::curve_color;
     }
 }
 
 void CubicCurve::draw(sf::RenderTarget& target, sf::RenderStates state) const {
+    (void)state;
     target.draw(vArray);
 }
 
 // simple loop to calculate lenght of curve
 double CubicCurve::length() const {
     double result = 0.0;
-    for (int i = 1; i < vArray.getVertexCount(); i++) {
+    for (size_t i = 1; i < vArray.getVertexCount(); i++) {
         result += Helper::distance(vArray[i-1].position, vArray[i].position);
     }
     return result;

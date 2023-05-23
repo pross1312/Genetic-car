@@ -6,7 +6,7 @@ Spline::Spline(): _curves{ Config::nCurves }, _splineArray{ sf::LineStrip, 0 } {
     if (Config::nCurves < 1)
         throw std::invalid_argument("Number of vertex can't be less than 2.");
     nControlPoints = 2 * Config::nCurves;
-    for (int i = 0; i < Config::nCurves; i++) {
+    for (unsigned i = 0; i < Config::nCurves; i++) {
         if (i > 0) {
             _curves[i].start = _curves[i - 1].end;
         }
@@ -56,7 +56,7 @@ void Spline::update() {
     if (_splineArray.getVertexCount() != (n - 1) * _curves.size() + 2)
         _splineArray.resize((n - 1) * _curves.size() + 2);
 
-    for (int j = 0; j < _curves.size(); j++) {
+    for (size_t j = 0; j < _curves.size(); j++) {
         _curves[j].update();
         const sf::VertexArray& vArray = _curves[j].vArray;
         for (int i = 0; i < n - 1; i++)
@@ -69,9 +69,10 @@ void Spline::update() {
 
 
 void Spline::draw(sf::RenderTarget& target, sf::RenderStates state) const {
+    (void)state;
     sf::VertexArray line{ sf::Lines, 2 };
     target.draw(_splineArray);
-    for (int i = 0; i < _curves.size(); i++) {
+    for (size_t i = 0; i < _curves.size(); i++) {
         Helper::drawLine(target, _curves[0].start->getPosition(), _curves[0].startCtrl->getPosition(), Config::line_color);
         Helper::drawLine(target, _curves[0].end->getPosition(), _curves[0].endCtrl->getPosition(), Config::line_color);
         target.draw(*_curves[i].start);
@@ -85,13 +86,13 @@ void Spline::readFromFile(std::ifstream& fin) {
     // change number of curves in config and regenerate spline
     fin >> Config::nCurves;
     if (_curves.size() == Config::nCurves) {
-        for (int i = 0; i < Config::nCurves; i++)
+        for (unsigned i = 0; i < Config::nCurves; i++)
             _curves[i].readFromFile(fin);
     }
     else {
         Spline temp{};
         *this = temp;
-        for (int i = 0; i < Config::nCurves; i++)
+        for (unsigned i = 0; i < Config::nCurves; i++)
             _curves[i].readFromFile(fin);
     }
     update();

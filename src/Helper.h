@@ -23,8 +23,8 @@ namespace Helper {
 
     template<typename T>
     inline std::optional<sf::Vector2<T>> pointProjectToLine(const sf::Vector2<T>& point, const sf::Vector2<T>& A, const sf::Vector2<T>& B) {
-        double m = -((A.x - point.x) * (B.x - A.x) + (A.y - point.y) * (B.y - A.y)) /
-            ((B.x - A.x) * (B.x - A.x) + (B.y - A.y) * (B.y - A.y));
+        float m = -((A.x - point.x) * (B.x - A.x) * 1.0f + (A.y - point.y) * 1.0 * (B.y - A.y)) /
+            ((B.x - A.x) * (B.x - A.x) + (B.y - A.y) * (B.y - A.y)) * 1.0f;
         if (m < 0 || m > 1)
             return {};
         return (sf::Vector2<T>) { A.x + m * (B.x - A.x), A.y + m * (B.y - A.y) };
@@ -41,10 +41,10 @@ namespace Helper {
     }
 
     inline bool contains(const sf::ConvexShape& v, sf::Vector2f position) {
-        unsigned n = v.getPointCount();
+        size_t n = v.getPointCount();
         sf::Vector2f zero{640.0f, 540.0f};
         int count = 0;
-        for (int i = 0; i < n - 1; i++) {
+        for (size_t i = 0; i < n - 1; i++) {
             if (lineIntersect(v.getPoint(i), v.getPoint(i + 1), position, zero))
                 count++;
         }

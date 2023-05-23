@@ -12,7 +12,7 @@ Car::Car(const char* imagePath)
     auto bound = _sprite.getLocalBounds();
     _sprite.setOrigin(bound.width / 2, bound.height / 2);
     _sprite.setScale(scale);
-    _sprite.setRotation(-90);
+    _sprite.setRotation(0);
     bound = _sprite.getGlobalBounds();
     _localEyePosition.x = 0;
     _localEyePosition.y = 0;
@@ -30,7 +30,7 @@ Car::Car(const Car& p1, const Car& p2)
     auto bound = _sprite.getLocalBounds();
     _sprite.setOrigin(bound.width / 2, bound.height / 2);
     _sprite.setScale(scale);
-    _sprite.setRotation(-90);
+    _sprite.setRotation(0);
     bound = _sprite.getGlobalBounds();
     _localEyePosition.x = 0;
     _localEyePosition.y = 0;
@@ -48,7 +48,7 @@ Car::Car(const Car& base)
     auto bound = _sprite.getLocalBounds();
     _sprite.setOrigin(bound.width / 2, bound.height / 2);
     _sprite.setScale(scale);
-    _sprite.setRotation(-90);
+    _sprite.setRotation(0);
     bound = _sprite.getGlobalBounds();
     _localEyePosition.x = 0;
     _localEyePosition.y = 0;
@@ -59,10 +59,29 @@ Car::Car(const Car& base)
     forward.x = 1;
     forward.y = 0;
 }
+Car& Car::operator=(const Car& b) {
+    _brain = b._brain;
+    _eye = b._eye;
+    _texture = b._texture;
+    _sprite = b._sprite;
+    auto bound = _sprite.getLocalBounds();
+    _sprite.setOrigin(bound.width / 2, bound.height / 2);
+    _sprite.setScale(scale);
+    _sprite.setRotation(0);
+    bound = _sprite.getGlobalBounds();
+    _localEyePosition.x = 0;
+    _localEyePosition.y = 0;
+    _eye.setPosition(Helper::addVector(_localEyePosition, _sprite.getPosition()));
+    lap = 0;
+    lastCheckPoint = 1;
+    forward.x = 1;
+    forward.y = 0;
+    return *this;
+}
 
 
 
-Car::Car(): Car("./resources/car.jpg") {}
+Car::Car(): Car("./resources/Car_agent.jpeg") {}
 
 
 
@@ -85,48 +104,36 @@ void Car::think(const Path& path) {
         movement.moveforward = false;
     else if (decision == 4)
         movement.rotate = Rotate::None;
-    
-    
+}
+void Car::control(const sf::Event& event) {
+    if (event.type == sf::Event::KeyPressed) {
+        if (event.key.code == sf::Keyboard::W) {
+            movement.moveforward = true;
+        }
+        else if (event.key.code == sf::Keyboard::S) {
+            movement.moveforward = false;
+        }
+        else if (event.key.code == sf::Keyboard::A) {
+            movement.rotate = Rotate::Up;
+        }
+        else if (event.key.code == sf::Keyboard::D) {
+            movement.rotate = Rotate::Down;
+        }
+    }
+    else if (event.type == sf::Event::KeyReleased) {
+        if (event.key.code == sf::Keyboard::A || event.key.code == sf::Keyboard::D) {
+            movement.rotate = Rotate::None;
+        }
+        else if (event.key.code == sf::Keyboard::W) {
+            movement.moveforward = false;
+        }
+    }
 }
 
-// std::pair<sf::Vector2f, int> Car::FindPositionOnPath(const Path& path) const {
-//     const sf::VertexArray& vArray = path.getSplineArray();
-//     int n = vArray.getVertexCount();
-//     sf::Vector2f pos = _sprite.getPosition();
-//     double minDistance = 9999999;
-//     std::optional<sf::Vector2f> projectionPoint{};
-//     int index = -1;
-//     for (int i = 1; i < n - 1; i++) {
-//         std::optional<sf::Vector2f> temp = Helper::pointProjectToLine(pos, vArray[i].position, vArray[i + 1].position);
-//         if (temp.has_value()) {
-//             double tempDistance = Helper::distance(pos, temp.value());
-//             if (tempDistance <= Config::path_width && tempDistance < minDistance) {
-//                 projectionPoint = temp;
-//                 minDistance = tempDistance;
-//                 index = i;
-//             }
-//         }
-//     }
-//     if (!projectionPoint.has_value()) {
-//         for (int i = 1; i < n - 1; i++) {
-//             double tempDistance = Helper::distance(vArray[i].position, pos);
-//             if (tempDistance < minDistance) {
-//                 minDistance = tempDistance;
-//                 projectionPoint = vArray[i].position;
-//                 index = i;
-//             }
-//         }
-//     }
-//     return std::make_pair(projectionPoint.value(), index);
-// }
-
-double Car::getTravelDisance(const Path& path) const {
+double Car::getTravelDistance(const Path& path) const {
     double current_lap_distance = path.getDistanceTravel(_sprite.getPosition());
-    
     return current_lap_distance + lap * path.getPathLength();
 }
-
-
 
 void Car::update(const Path& path) {
     auto currentPosition = path.getPositionOnSpline(_sprite.getPosition());
@@ -185,6 +192,7 @@ void Car::mutate() {
 
 
 void Car::draw(sf::RenderTarget& target, sf::RenderStates states) const {
+    (void)states;
     target.draw(_sprite);
 }
 

@@ -6,7 +6,7 @@ Eye::Eye(unsigned distancePerRay, unsigned nRays)
     float degree = -(_distancePerRay * (_nRays - 1) / 2.0f);
     for (Ray& r : _rays) {
         r.setPosition(_position);
-        sf::Vector2f temp{std::cos(degree * M_PI / 180.0f), std::sin(degree * M_PI / 180.0f)};
+        sf::Vector2f temp{std::cos(degree * (float)M_PI / 180.0f), std::sin(degree * (float)M_PI / 180.0f)};
         r.setDirection(temp);
         degree += _distancePerRay;
     }
@@ -15,7 +15,7 @@ Eye::Eye(unsigned distancePerRay, unsigned nRays)
 
 Eigen::VectorXf Eye::senseDistance(const Path& path) const {
     Eigen::VectorXf output{Eigen::VectorXf::Constant(_nRays, 9999999)};
-    for (int i = 0; i < _nRays; i++) {
+    for (unsigned i = 0; i < _nRays; i++) {
         std::optional<sf::Vector2f> temp = _rays[i].cast(path);
         if (temp.has_value()) {
             output[i] = Helper::distance(*_position, temp.value());
@@ -28,7 +28,7 @@ Eigen::VectorXf Eye::senseDistance(const Path& path) const {
 
 Eigen::VectorXf Eye::senseDistance(const sf::Vector2f& A, const sf::Vector2f& B) const {
     Eigen::VectorXf output{Eigen::VectorXf::Constant(_nRays, 10000)};
-    for (int i = 0; i < _nRays; i++) {
+    for (unsigned i = 0; i < _nRays; i++) {
         std::optional<sf::Vector2f> temp = _rays[i].checkAgainLine(A, B);
         if (temp.has_value()) {
             output[i] = Helper::distance(*_position, temp.value());
