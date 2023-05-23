@@ -25,6 +25,7 @@ public:
 	~NeuralNetwork() = default;
 	NeuralNetwork(const NeuralNetwork& base);
 	NeuralNetwork(std::vector<int> layerSizes, std::function<float(float)> activation);
+    NeuralNetwork(const NeuralNetwork& a, const NeuralNetwork& b);
 	Eigen::VectorXf forward_propagate(Eigen::VectorXf input) const;
     NeuralNetwork& operator=(const NeuralNetwork& b);
 	friend std::ifstream& operator>>(std::ifstream& fin, NeuralNetwork& nn);

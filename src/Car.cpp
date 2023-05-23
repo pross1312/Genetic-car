@@ -25,7 +25,7 @@ Car::Car(const char* imagePath)
 }
 
 Car::Car(const Car& p1, const Car& p2)
-    : _brain{p1._brain.reproduce(p2._brain)}, _eye{p1._eye}, _texture{p1._texture}, _sprite{p1._sprite} {
+    : _brain{p1._brain, p2._brain}, _eye{p1._eye}, _texture{p1._texture}, _sprite{p1._sprite} {
     
     auto bound = _sprite.getLocalBounds();
     _sprite.setOrigin(bound.width / 2, bound.height / 2);
@@ -60,6 +60,7 @@ Car::Car(const Car& base)
     forward.y = 0;
 }
 Car& Car::operator=(const Car& b) {
+    assert(false && "Not working correctly");
     _brain = b._brain;
     _eye = b._eye;
     _texture = b._texture;

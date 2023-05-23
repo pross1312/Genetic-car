@@ -105,7 +105,6 @@ void handle_compete_mode() {
                 _window.close(); 
             }
             if (!path.contains(human.getPosition())) {
-                start = false;
             }
         }
         _window.draw(agent);
@@ -158,7 +157,9 @@ void handle_training_mode() {
             auto bestCar = std::max_element(poolCar.begin(), poolCar.end(), comp_performance);
             bestCar->saveBrainToFile(agent_file);
             float new_best_performance = bestCar->getTravelDistance(path);
-            assert(best_car_performance >= new_best_performance && "Best car will be passed on to next generation so performance can't get worse");
+            if (best_car_performance != .0f) {
+                assert(best_car_performance <= new_best_performance && "Best car will be passed on to next generation so performance can't get worse");
+            }
             best_car_performance = new_best_performance;
             std::fill(onMovingCar.begin(), onMovingCar.end(), true);
             std::vector<Car> new_generation;

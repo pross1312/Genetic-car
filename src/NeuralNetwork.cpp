@@ -27,6 +27,16 @@ NeuralNetwork& NeuralNetwork::operator=(const NeuralNetwork& b) {
     }
     return *this;
 }
+NeuralNetwork::NeuralNetwork(const NeuralNetwork& a, const NeuralNetwork& b) {
+    assert(a.topology == b.topology);
+    this->topology = a.topology;
+    this->activation = a.activation;
+    for (size_t i = 0; i < a.weights.size(); i++) {
+        float r = rand() * 1.0f / RAND_MAX;
+        this->weights.push_back(std::make_shared<MatrixXf>((*a.weights[i] + *b.weights[i]) * r));
+        this->biases.push_back(std::make_shared<VectorXf>((*a.biases[i] + *b.biases[i]) * r));
+    }
+}
 
 NeuralNetwork::NeuralNetwork(std::vector<int> layerSizes,
                              std::function<float(float)> activation)
@@ -53,6 +63,7 @@ void NeuralNetwork::changeRandom() {
         *biases[i] += 2 * VectorXf::Random(biases[i]->size());
     }
 }
+
 
 NeuralNetwork NeuralNetwork::reproduce(const NeuralNetwork& n) const {
     NeuralNetwork temp{*this};
