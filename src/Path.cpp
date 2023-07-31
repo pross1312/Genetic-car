@@ -55,12 +55,12 @@ void Path::update() {
     for (size_t i = 1; i < n - 1; i++) {
         sf::Vector2f normal1 = Helper::getNormal(vArray[i - 1].position, vArray[i].position);
         sf::Vector2f normal2 = Helper::getNormal(vArray[i].position, vArray[i + 1].position);
-        sf::Vector2f normal = Helper::addVector(normal1, normal2);
+        sf::Vector2f normal = normal1 + normal2;
         Helper::normalize(normal);
         normal = Helper::mul(normal, Config::path_width);
-        pathShape1.setPoint(count, Helper::addVector(normal, vArray[i].position));
+        pathShape1.setPoint(count, normal + vArray[i].position);
         normal = Helper::mul(normal, -1);
-        pathShape2.setPoint(count, Helper::addVector(normal, vArray[i].position));
+        pathShape2.setPoint(count, normal + vArray[i].position);
         count++;
     }
     updatePreComputedLength();
@@ -111,4 +111,3 @@ double Path::getDistanceTravel(const sf::Vector2f& position) const {
     return Helper::distance(vArray[data.second].position, data.first) +
         _pre_computed_length[data.second - 1];   // as for why its index-1, read the implementation
 }
-

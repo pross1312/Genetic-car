@@ -40,10 +40,11 @@ Eigen::VectorXf Eye::senseDistance(const sf::Vector2f& A, const sf::Vector2f& B)
 void Eye::rotate(float angle) {
     for (Ray& r : _rays)
         r.rotate(angle);
+    rotation += angle;
 }
 
 void Eye::draw(sf::RenderTarget& target, const Path& path) const {
-    
+
     for (const Ray& r : _rays) {
         std::optional<sf::Vector2f> temp = r.cast(path);
         if (temp.has_value()) {
@@ -54,7 +55,7 @@ void Eye::draw(sf::RenderTarget& target, const Path& path) const {
 }
 
 void Eye::draw(sf::RenderTarget& target, const sf::Vector2f& A, const sf::Vector2f& B) const {
-    
+
     for (const Ray& r : _rays) {
         std::optional<sf::Vector2f> temp = r.checkAgainLine(A, B);
         if (temp.has_value()) {

@@ -53,7 +53,7 @@ NeuralNetwork::NeuralNetwork(std::vector<int> layerSizes,
         *weights[weights.size()-1] = 0.5 * (*weights[weights.size()-1] + MatrixXf::Constant(layerSizes[i], layerSizes[i-1], 1));
         // init biases with 0
         biases.push_back(std::make_shared<VectorXf>(VectorXf::Random(layerSizes[i])));
-        
+
     }
 }
 
@@ -115,7 +115,6 @@ VectorXf NeuralNetwork::forward_propagate(VectorXf input) const {
     for (size_t i = 0; i < weights.size(); i++) {
         input = ((*weights[i]) * input + (*biases[i])).unaryExpr(activation);
     }
-    
+
     return input;
 }
-

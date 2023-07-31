@@ -13,7 +13,8 @@
 inline const sf::Color background = sf::Color::Black;
 inline const int tournament_size = 10;
 inline bool training = false;
-inline float mutation_rate = 0.0f; 
+inline bool allow_downgraded = false;
+inline float mutation_rate = 0.0f;
 inline size_t init_population = 0;
 inline const char* map_file = NULL;
 inline const char* agent_file = NULL;
@@ -30,19 +31,21 @@ void usage() {
     printf("./Car <SubCommand> [parameter]\n");
     printf("      Train <seed> <mutation rate> <initial popoulation> <map file> <out file>\n");
     printf("      Compete <agent file> <map file>\n");
+    printf("Example: ./Car Compete BestCar resources/Path.txt\n");
+    printf("         ./Car Train 123 0.5 20 resources/Path.txt BestCar\n");
 }
 
 int main(int argc, char** argv) {
     Config::read_config("config");
-    
+
     if (argc <= 1) {
         usage();
-        fprintf(stderr, "Error: no subcommand provided");
+        fprintf(stderr, "Error: no subcommand provided\n");
         exit(EXIT_FAILURE);
     }
     try {
         if (strcmp(argv[1], "Train") == 0) {
-            training = true; 
+            training = true;
             srand(std::stoi(argv[2]));
             mutation_rate = std::stof(argv[3]);
             assert(std::stoi(argv[4]) >= 0);
@@ -78,41 +81,55 @@ void handle_compete_mode() {
     Car agent {"resources/Car_agent.jpeg"};
     Car human {"resources/Car_human.jpeg"};
     agent.readBrainFromFile(agent_file);
-    agent.setPosition(path.getStartPosition());
-    human.setPosition(path.getStartPosition());
+    auto start_param = path.getStartPosition();
+    printf("%f\n", start_param.second);
+    agent.setPosition(start_param.first);
+    agent.setRotation(start_param.second);
+    human.setPosition(start_param.first);
+    human.setRotation(start_param.second);
     bool start = false;
     while (_window.isOpen()) {
         while (_window.pollEvent(_event)) {
             if (_event.type == sf::Event::Closed)
                 _window.close();
-            else if (start) {
-                human.control(_event);
-            }
             else if (_event.type == sf::Event::KeyPressed) {
-                start = true;
-                human.control(_event);
-            } 
+                if (_event.key.code == sf::Keyboard::R) {
+                    human.reset();
+                    agent.reset();
+                    agent.setPosition(start_param.first);
+                    agent.setRotation(start_param.second);
+                    human.setPosition(start_param.first);
+                    human.setRotation(start_param.second);
+                    start = false;
+                } else {
+                    start = true;
+                }
+            }
+            human.control(_event);
         }
         _window.clear();
         _window.draw(path);
         if (start) {
-            agent.think(path);
-            human.move();
-            agent.move();
+            if (path.contains(human.getPosition())) {
+                human.move();
+                float dis = human.getTravelDistance(path);
+                sf::Text dis_text(std::to_string(1.0 / dis), font);
+                dis_text.setPosition(Config::screen_width - 150, 0);
+                _window.draw(dis_text);
+            }
+            if (path.contains(agent.getPosition())) {
+                agent.think(path);
+                agent.move();
+            }
             human.update(path);
             agent.update(path);
-            if (!path.contains(human.getPosition())) {
-                _window.close(); 
-            }
-            if (!path.contains(human.getPosition())) {
-            }
         }
         _window.draw(agent);
         _window.draw(human);
         _window.display();
     }
 }
-    
+
 
 
 void handle_training_mode() {
@@ -120,11 +137,13 @@ void handle_training_mode() {
     std::vector<bool> onMovingCar;
     int currentAlive = init_population;
     float best_car_performance = .0f;
+    auto start_param = path.getStartPosition();
     for (size_t i = 0; i < init_population; i++) {
-        poolCar[i].setPosition(path.getStartPosition());
+        poolCar[i].setPosition(start_param.first);
+        poolCar[i].setRotation(start_param.second);
         onMovingCar.push_back(true);
     }
-    int maxMove = 150;
+    int maxMove = 30;
     int movelefts = maxMove;
     auto comp_performance = [](const Car& a, const Car& b) {
         if (a.getLap() < b.getLap())
@@ -137,6 +156,7 @@ void handle_training_mode() {
 
     while (_window.isOpen()) {
         prog_clock.restart();
+        allow_downgraded = false;
         while (_window.pollEvent(_event)) {
             if (_event.type == sf::Event::Closed)
                 _window.close();
@@ -146,6 +166,7 @@ void handle_training_mode() {
                 }
                 else if (_event.key.code == sf::Keyboard::Down && maxMove > 30) {
                     maxMove -= 10;
+                    allow_downgraded = true;
                 }
             }
             else if (_event.type == sf::Event::KeyReleased) {
@@ -158,13 +179,15 @@ void handle_training_mode() {
             bestCar->saveBrainToFile(agent_file);
             float new_best_performance = bestCar->getTravelDistance(path);
             if (best_car_performance != .0f) {
-                assert(best_car_performance <= new_best_performance && "Best car will be passed on to next generation so performance can't get worse");
+                printf("Cur: %f, Old: %f\n", new_best_performance, best_car_performance);
+                if (!allow_downgraded) {
+                    assert(new_best_performance >= best_car_performance && "Best car will be passed on to next generation so performance can't get worse");
+                }
             }
             best_car_performance = new_best_performance;
             std::fill(onMovingCar.begin(), onMovingCar.end(), true);
             std::vector<Car> new_generation;
             new_generation.push_back(*bestCar);
-            new_generation[0].setPosition(path.getStartPosition());
             for (size_t i = 1; i < init_population; i++) {
                 int rand_idx = rand() % (init_population - tournament_size);
                 auto p1 = std::max_element(poolCar.begin() + rand_idx,
@@ -176,7 +199,6 @@ void handle_training_mode() {
                                             comp_performance);
                 Car temp{ *p1, *p2 };
                 new_generation.push_back(temp);
-                new_generation[i].setPosition(path.getStartPosition());
                 if (rand() % 100 < mutation_rate * 100) {
                     new_generation[i].mutate();
                 }
@@ -184,6 +206,11 @@ void handle_training_mode() {
 
             poolCar.clear();
             poolCar = new_generation;
+            for (auto& c : poolCar) {
+                c.reset();
+                c.setPosition(start_param.first);
+                c.setRotation(start_param.second);
+            }
             currentAlive = init_population;
             movelefts = maxMove;
         }
@@ -208,13 +235,16 @@ void handle_training_mode() {
         float frame_second = prog_clock.getElapsedTime().asSeconds();
         sf::Text fps(std::to_string(1.0 / frame_second), font);
         fps.setPosition(Config::screen_width - 150, 0);
+        _window.draw(fps);
+
         sf::Text current_max_move_per_gen(std::to_string(maxMove), font);
         current_max_move_per_gen.setPosition(Config::screen_width - 150, fps.getGlobalBounds().height + 10);
+        _window.draw(current_max_move_per_gen);
+
         sf::Text current_best_car_performance(std::to_string(best_car_performance), font);
         current_best_car_performance.setPosition(Config::screen_width - 150, fps.getGlobalBounds().height * 2 + 20);
-        _window.draw(fps);
-        _window.draw(current_max_move_per_gen);
         _window.draw(current_best_car_performance);
+
 
         _window.display();
     }

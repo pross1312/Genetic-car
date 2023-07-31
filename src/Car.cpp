@@ -17,7 +17,23 @@ Car::Car(const char* imagePath)
     _localEyePosition.x = 0;
     _localEyePosition.y = 0;
 
-    _eye.setPosition(Helper::addVector(_localEyePosition, _sprite.getPosition()));
+    _eye.setPosition(_localEyePosition + _sprite.getPosition());
+    lap = 0;
+    lastCheckPoint = 1;
+    forward.x = 1;
+    forward.y = 0;
+}
+
+void Car::reset() {
+    accelerator = 0;
+    forward = { 1, 0 };
+    _sprite.setRotation(0);
+    movement.moveforward = false;
+    _sprite.setRotation(0);
+    movement.rotate = Rotate::None;
+    _localEyePosition.x = 0;
+    _localEyePosition.y = 0;
+    _eye.setPosition(_localEyePosition + _sprite.getPosition());
     lap = 0;
     lastCheckPoint = 1;
     forward.x = 1;
@@ -26,7 +42,7 @@ Car::Car(const char* imagePath)
 
 Car::Car(const Car& p1, const Car& p2)
     : _brain{p1._brain, p2._brain}, _eye{p1._eye}, _texture{p1._texture}, _sprite{p1._sprite} {
-    
+
     auto bound = _sprite.getLocalBounds();
     _sprite.setOrigin(bound.width / 2, bound.height / 2);
     _sprite.setScale(scale);
@@ -35,7 +51,7 @@ Car::Car(const Car& p1, const Car& p2)
     _localEyePosition.x = 0;
     _localEyePosition.y = 0;
 
-    _eye.setPosition(Helper::addVector(_localEyePosition, _sprite.getPosition()));
+    _eye.setPosition(_localEyePosition + _sprite.getPosition());
     lap = 0;
     lastCheckPoint = 1;
     forward.x = 1;
@@ -44,20 +60,6 @@ Car::Car(const Car& p1, const Car& p2)
 
 Car::Car(const Car& base)
     : _brain{base._brain}, _eye{base._eye}, _texture{base._texture}, _sprite{base._sprite} {
-    
-    auto bound = _sprite.getLocalBounds();
-    _sprite.setOrigin(bound.width / 2, bound.height / 2);
-    _sprite.setScale(scale);
-    _sprite.setRotation(0);
-    bound = _sprite.getGlobalBounds();
-    _localEyePosition.x = 0;
-    _localEyePosition.y = 0;
-
-    _eye.setPosition(Helper::addVector(_localEyePosition, _sprite.getPosition()));
-    lap = 0;
-    lastCheckPoint = 1;
-    forward.x = 1;
-    forward.y = 0;
 }
 Car& Car::operator=(const Car& b) {
     assert(false && "Not working correctly");
@@ -72,7 +74,7 @@ Car& Car::operator=(const Car& b) {
     bound = _sprite.getGlobalBounds();
     _localEyePosition.x = 0;
     _localEyePosition.y = 0;
-    _eye.setPosition(Helper::addVector(_localEyePosition, _sprite.getPosition()));
+    _eye.setPosition(_localEyePosition + _sprite.getPosition());
     lap = 0;
     lastCheckPoint = 1;
     forward.x = 1;
@@ -88,7 +90,7 @@ Car::Car(): Car("./resources/Car_agent.jpeg") {}
 
 void Car::translate(const sf::Vector2f& velocity) {
     _sprite.move(velocity);
-    _eye.setPosition(Helper::addVector(_sprite.getPosition(), _localEyePosition));
+    _eye.setPosition(_sprite.getPosition() + _localEyePosition);
 }
 
 void Car::think(const Path& path) {
@@ -204,8 +206,17 @@ void Car::showEyeLine(sf::RenderTarget& target, const Path& path) {
 void Car::rotate(float angle) {
     _sprite.rotate(-angle);
     Helper::rotate(_localEyePosition, angle);
-    _eye.setPosition(Helper::addVector(_localEyePosition, _sprite.getPosition()));
+    _eye.setPosition(_localEyePosition + _sprite.getPosition());
     Helper::rotate(forward, angle);
     _eye.rotate(angle);
 }
-
+void Car::setRotation(float angle) {
+    float temp = - _sprite.getRotation();
+    _sprite.setRotation(-angle);
+    Helper::rotate(_localEyePosition, temp);
+    Helper::rotate(_localEyePosition, angle);
+    _eye.setPosition(_localEyePosition + _sprite.getPosition());
+    Helper::rotate(forward, temp);
+    Helper::rotate(forward, angle);
+    _eye.setRotation(angle);
+}

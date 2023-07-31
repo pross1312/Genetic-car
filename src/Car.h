@@ -24,15 +24,9 @@ public:
 	~Car() = default;
     Car& operator=(const Car& b);
 	void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
-	void setPosition(const sf::Vector2f& position) { _sprite.setPosition(position); }
-	void setPosition(float x, float y) { setPosition((sf::Vector2f) { x, y }); }
-	float getRotation() const { return _sprite.getRotation(); }
 	void translate(const sf::Vector2f& velocity);
 	void showEyeLine(sf::RenderTarget& target, const Path& path);
-	const sf::Vector2f& getForward() { return forward; }
-	sf::Vector2f getPosition() const { return _sprite.getPosition(); }
-	void rotate(float rotate);
-	void moveForward() { translate(Helper::mul(forward, velocity + accelerator)); }
+	void rotate(float rotate); void setRotation(float angle);
 	void think(const Path& path);
 	void move();
     void control(const sf::Event& event);
@@ -44,10 +38,17 @@ public:
 
     // update car in for on path (like lap, check point ....)
 	void update(const Path& path);
-	
-    int getLap() const { return lap; }
-	int getLastCheckPoint() const { return lastCheckPoint; }
+    void reset();
+	inline void moveForward()                             { translate(Helper::mul(forward, velocity + accelerator)); }
+	inline void setPosition(const sf::Vector2f& position) { _sprite.setPosition(position); }
+	inline void setPosition(float x, float y)             { setPosition(sf::Vector2f{ x, y }); }
+	inline float getRotation() const                      { return _sprite.getRotation(); }
+	inline const sf::Vector2f& getForward()               { return forward; }
+	inline sf::Vector2f getPosition() const               { return _sprite.getPosition(); }
+    inline int getLap() const                             { return lap; }
+	inline int getLastCheckPoint() const                  { return lastCheckPoint; }
 	Movement movement;
+
 private:
     // return car position on path (projection point from car position on to _spline_array)
     // and the curve index that car is on
@@ -69,5 +70,4 @@ private:
 	sf::Vector2f forward{ 1, 0 };
 	sf::Texture _texture;
 	sf::Sprite _sprite;
-
 };

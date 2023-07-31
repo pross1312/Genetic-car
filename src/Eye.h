@@ -1,16 +1,16 @@
 #pragma once
 
 #include "Ray.h"
-#include <eigen3/Eigen/Core>
 #include <vector>
+#include <eigen3/Eigen/Core>
 
 
 class Eye {
 public:
 	Eye(unsigned distancePerRay, unsigned nRays);
 	Eye(const Eye& base) : Eye(base._distancePerRay, base._nRays) {}
-    
-    // Eye& operator=(const Eye& b) = default; 
+
+    // Eye& operator=(const Eye& b) = default;
     Eye& operator=(const Eye& b) {
         _distancePerRay = b._distancePerRay;
         _nRays = b._nRays;
@@ -23,6 +23,7 @@ public:
 	Eigen::VectorXf senseDistance(const Path& path) const;
 	Eigen::VectorXf senseDistance(const sf::Vector2f& A, const sf::Vector2f& B) const;
 	void rotate(float angle);
+	inline void setRotation(float angle) { rotate(-rotation); rotate(angle); rotation = angle; }
 	void setPosition(const sf::Vector2f& position) { *_position = position; }
 	void draw(sf::RenderTarget& target, const Path& path) const;
 	void draw(sf::RenderTarget& target, const sf::Vector2f& A, const sf::Vector2f& B) const;
@@ -30,6 +31,7 @@ private:
 	// in degree
 	unsigned _distancePerRay = 20;
 	unsigned _nRays = 7;
+    float rotation = 0.0f;
 
 	std::vector<Ray> _rays;
 	std::shared_ptr<sf::Vector2f> _position;
