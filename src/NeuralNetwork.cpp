@@ -66,12 +66,13 @@ void NeuralNetwork::changeRandom() {
 
 
 NeuralNetwork NeuralNetwork::reproduce(const NeuralNetwork& n) const {
-    NeuralNetwork temp{*this};
-    for (size_t i = 0; i < temp.weights.size(); i++) {
-        *temp.weights[i] = (*temp.weights[i] + *n.weights[i]) * 0.5f;
-        *temp.biases[i] = (*temp.biases[i] + *n.biases[i]) * 0.5f;
+    NeuralNetwork child{*this};
+    for (size_t i = 0; i < child.weights.size(); i++) {
+        float ratio = rand()*1.0f / RAND_MAX;
+        *child.weights[i] = *child.weights[i] * ratio  + *n.weights[i] * (1-ratio);
+        *child.biases[i] = *child.biases[i] * ratio + *n.biases[i] * (1-ratio);
     }
-    return temp;
+    return child;
 }
 
 std::ofstream& operator<<(std::ofstream& fout, const NeuralNetwork& nn) {
@@ -91,10 +92,10 @@ std::ifstream& operator>>(std::ifstream& fin, NeuralNetwork& nn) {
     fin >> n;
     if (n != nn.topology.size())
         throw std::runtime_error("Wrong topology size!");
-    std::vector<int> tempTopology(n);
-    for (int& i : tempTopology)
+    std::vector<int> temp_topology(n);
+    for (int& i : temp_topology)
         fin >> i;
-    if (tempTopology != nn.topology)
+    if (temp_topology != nn.topology)
         throw std::runtime_error("Wrong topology!");
     for (auto& weight : nn.weights) {
         for (int i = 0; i < weight->rows(); i++)

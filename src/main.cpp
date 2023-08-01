@@ -5,7 +5,7 @@
 #define LINE_PADDING 10
 #define RIGHT_PADDING 5
 #define STUCK_TOLERANCE 5
-#define MAX_MOVE_INCREMENT 5
+#define MAX_MOVE_INCREMENT 10
 #define STUCK_COLOR 0xff632eff
 
 // genetic optimization for automatic car...
@@ -14,12 +14,12 @@
 // read configuration form config file.
 
 inline const sf::Color background = sf::Color::Black;
-inline const int tournament_size = 10;
+inline const int tournament_size = 5;
 inline bool training = false;
 inline bool show_eye_line = false;
 inline float mutation_rate = 0.0f;
 inline size_t init_population = 0;
-inline size_t count_stuck = 0;
+inline size_t stuck_count = 0;
 inline bool try_fix = false;
 inline const char* map_file = NULL;
 inline const char* agent_file = NULL;
@@ -150,6 +150,12 @@ void handle_training_mode() {
         poolCar[i].setRotation(start_param.second);
         onMovingCar.push_back(true);
     }
+    try {
+        poolCar[0].readBrainFromFile(agent_file);
+    } catch (const std::exception& e) {
+        printf("%s\n", e.what());
+    }
+
     int max_move = 30;
     int movelefts = max_move;
     auto comp_performance = [](const Car& a, const Car& b) {
@@ -176,31 +182,39 @@ void handle_training_mode() {
                 else if (_event.key.code == sf::Keyboard::S) {
                     show_eye_line = !show_eye_line;
                 }
+                else if (_event.key.code == sf::Keyboard::S) {
+                    printf("Stuck: %zu\n", stuck_count);
+                }
             }
             else if (_event.type == sf::Event::KeyReleased) {
             }
         }
 
-        if (count_stuck > STUCK_TOLERANCE && !try_fix) {
+        if (stuck_count > STUCK_TOLERANCE && !try_fix) {
             max_move += MAX_MOVE_INCREMENT;
             try_fix = true;
         }
 
         // end of a generation
         if (current_alive == 0 || movelefts <= 0) {
+            // if (movelefts == 0 && best_car_tracker != nullptr && path.contains(best_car_tracker->getPosition())) {
+            //     max_move += MAX_MOVE_INCREMENT;
+            // }
             auto bestCar = std::max_element(poolCar.begin(), poolCar.end(), comp_performance);
             bestCar->saveBrainToFile(agent_file);
             float new_best_performance = bestCar->getTravelDistance(path);
-            if (best_car_performance != 0.0f) {
-                assert(new_best_performance >= best_car_performance && "Best car will be passed on to next generation so performance can't get worse");
-            }
+            // if (best_car_performance != 0.0f) {
+            //     assert((new_best_performance >= best_car_performance ||
+            //            best_car_performance - new_best_performance <= 2)
+            //            && "Best car will be passed on to next generation so performance can't get too worse than before");
+            // }
             if (best_car_performance < new_best_performance) {
-                count_stuck = 0;
+                stuck_count = 0;
                 try_fix = false;
-                best_car_performance = new_best_performance;
-            } else if (best_car_performance == new_best_performance) {
-                count_stuck++;
+            } else if (new_best_performance <= best_car_performance) {
+                stuck_count++;
             }
+            best_car_performance = new_best_performance;
             std::fill(onMovingCar.begin(), onMovingCar.end(), true);
             std::vector<Car> new_generation;
             new_generation.push_back(*bestCar);
@@ -216,11 +230,12 @@ void handle_training_mode() {
                 Car temp{ *p1, *p2 };
                 new_generation.push_back(temp);
                 // too stuct??? then mutate like crazy
-                if (count_stuck > STUCK_TOLERANCE + 5 || rand() % 100 < mutation_rate * 100) {
+                if (rand() % 100 < (mutation_rate + stuck_count/100) * 100) {
                     new_generation[i].mutate();
+                    if (stuck_count > STUCK_TOLERANCE + 5)
+                        new_generation[i].mutate();
                 }
             }
-
             poolCar.clear();
             poolCar = new_generation;
             for (auto& c : poolCar) {
@@ -230,6 +245,7 @@ void handle_training_mode() {
             }
             current_alive = init_population;
             movelefts = max_move;
+            best_car_tracker = &poolCar[0];
         }
 
         _window.clear(Config::back_ground);
@@ -263,16 +279,14 @@ void handle_training_mode() {
         _window.draw(current_max_move_per_gen_text);
 
         sf::Text current_best_car_performance_text(std::string("Performance: ") + std::to_string(best_car_performance), font);
-        if (count_stuck > STUCK_TOLERANCE) current_best_car_performance_text.setFillColor(sf::Color(STUCK_COLOR));
+        if (stuck_count > STUCK_TOLERANCE) current_best_car_performance_text.setFillColor(sf::Color(STUCK_COLOR));
         current_best_car_performance_text.setPosition(
                 Config::screen_width - current_best_car_performance_text.getGlobalBounds().width - RIGHT_PADDING,
                 current_max_move_per_gen_text.getGlobalBounds().top + current_max_move_per_gen_text.getGlobalBounds().height + LINE_PADDING);
         _window.draw(current_best_car_performance_text);
 
         sf::Text current_alive_text(std::string("Alive: ") + std::to_string(current_alive), font);
-        current_best_car_performance_text.setPosition(
-                Config::screen_width - current_alive_text.getGlobalBounds().width - RIGHT_PADDING,
-                current_best_car_performance_text.getGlobalBounds().top + current_best_car_performance_text.getGlobalBounds().height + LINE_PADDING);
+        current_alive_text.setPosition(0, 0);
         _window.draw(current_alive_text);
 
         _window.display();
