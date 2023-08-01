@@ -61,16 +61,17 @@ namespace Helper {
 
     inline bool contains(const sf::ConvexShape& v, const Vec2f& position) {
         size_t n = v.getPointCount();
-        Vec2f zero{640.0f, 540.0f};
+        Vec2f ref_point{position.x, -1};
         int count = 0;
         for (size_t i = 0; i < n - 1; i++) {
-            if (lineIntersect(v.getPoint(i), v.getPoint(i + 1), position, zero))
+            if (lineIntersect(v.getPoint(i), v.getPoint(i + 1), position, ref_point))
                 count++;
         }
-        if (lineIntersect(v.getPoint(0), v.getPoint(n - 1), position, zero))
+        if (lineIntersect(v.getPoint(0), v.getPoint(n - 1), position, ref_point))
             count++;
-        return count == 0;
+        return count%2 == 1;
     }
+
     template<typename T>
     inline Vec2<T> mul(const Vec2<T>& v, const float& scalar) {
         Vec2<T> result{ v.x* scalar, v.y* scalar };
