@@ -59,8 +59,8 @@ NeuralNetwork::NeuralNetwork(std::vector<int> layerSizes,
 
 void NeuralNetwork::changeRandom() {
     for (size_t i = 0; i < weights.size(); i++) {
-        *weights[i] += 2 * MatrixXf::Random(weights[i]->rows(), weights[i]->cols());
-        *biases[i] += 2 * VectorXf::Random(biases[i]->size());
+        *weights[i] += 0.5f * MatrixXf::Random(weights[i]->rows(), weights[i]->cols());
+        *biases[i] += 0.5f * VectorXf::Random(biases[i]->size());
     }
 }
 

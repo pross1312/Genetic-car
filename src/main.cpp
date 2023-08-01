@@ -4,6 +4,9 @@
 
 #define LINE_PADDING 10
 #define RIGHT_PADDING 5
+#define STUCK_TOLERANCE 5
+#define MAX_MOVE_INCREMENT 5
+#define STUCK_COLOR 0xff632eff
 
 // genetic optimization for automatic car...
 // -_- pretty dumb code.
@@ -17,6 +20,7 @@ inline bool show_eye_line = false;
 inline float mutation_rate = 0.0f;
 inline size_t init_population = 0;
 inline size_t count_stuck = 0;
+inline bool try_fix = false;
 inline const char* map_file = NULL;
 inline const char* agent_file = NULL;
 inline sf::RenderWindow _window{ sf::VideoMode(Config::screen_width, Config::screen_height), "CarGenetic" };
@@ -146,8 +150,8 @@ void handle_training_mode() {
         poolCar[i].setRotation(start_param.second);
         onMovingCar.push_back(true);
     }
-    int maxMove = 30;
-    int movelefts = maxMove;
+    int max_move = 30;
+    int movelefts = max_move;
     auto comp_performance = [](const Car& a, const Car& b) {
         if (a.getLap() < b.getLap())
             return true;
@@ -164,10 +168,10 @@ void handle_training_mode() {
                 _window.close();
             else if (_event.type == sf::Event::KeyPressed) {
                 if (_event.key.code == sf::Keyboard::Up) {
-                    maxMove += 10;
+                    max_move += MAX_MOVE_INCREMENT;
                 }
-                else if (_event.key.code == sf::Keyboard::Down && maxMove > 30) {
-                    maxMove -= 10;
+                else if (_event.key.code == sf::Keyboard::Down && max_move > 30) {
+                    max_move -= MAX_MOVE_INCREMENT;
                 }
                 else if (_event.key.code == sf::Keyboard::S) {
                     show_eye_line = !show_eye_line;
@@ -175,6 +179,11 @@ void handle_training_mode() {
             }
             else if (_event.type == sf::Event::KeyReleased) {
             }
+        }
+
+        if (count_stuck > STUCK_TOLERANCE && !try_fix) {
+            max_move += MAX_MOVE_INCREMENT;
+            try_fix = true;
         }
 
         // end of a generation
@@ -187,6 +196,7 @@ void handle_training_mode() {
             }
             if (best_car_performance < new_best_performance) {
                 count_stuck = 0;
+                try_fix = false;
                 best_car_performance = new_best_performance;
             } else if (best_car_performance == new_best_performance) {
                 count_stuck++;
@@ -205,10 +215,10 @@ void handle_training_mode() {
                                            comp_performance);
                 Car temp{ *p1, *p2 };
                 new_generation.push_back(temp);
-                if (count_stuck > 10 || rand() % 100 < mutation_rate * 100) {
+                // too stuct??? then mutate like crazy
+                if (count_stuck > STUCK_TOLERANCE + 5 || rand() % 100 < mutation_rate * 100) {
                     new_generation[i].mutate();
                 }
-                if (count_stuck > 20) new_generation[i].mutate();
             }
 
             poolCar.clear();
@@ -219,7 +229,7 @@ void handle_training_mode() {
                 c.setRotation(start_param.second);
             }
             current_alive = init_population;
-            movelefts = maxMove;
+            movelefts = max_move;
         }
 
         _window.clear(Config::back_ground);
@@ -246,14 +256,14 @@ void handle_training_mode() {
         fps.setPosition(Config::screen_width - fps.getGlobalBounds().width - RIGHT_PADDING, 0);
         _window.draw(fps);
 
-        sf::Text current_max_move_per_gen_text(std::string("Max move: ") + std::to_string(maxMove), font);
+        sf::Text current_max_move_per_gen_text(std::string("Max move: ") + std::to_string(max_move), font);
         current_max_move_per_gen_text.setPosition(
                 Config::screen_width - current_max_move_per_gen_text.getGlobalBounds().width - RIGHT_PADDING,
                 fps.getGlobalBounds().height + LINE_PADDING);
         _window.draw(current_max_move_per_gen_text);
 
         sf::Text current_best_car_performance_text(std::string("Performance: ") + std::to_string(best_car_performance), font);
-        if (count_stuck > 10) current_best_car_performance_text.setFillColor(sf::Color(0xff632eff));
+        if (count_stuck > STUCK_TOLERANCE) current_best_car_performance_text.setFillColor(sf::Color(STUCK_COLOR));
         current_best_car_performance_text.setPosition(
                 Config::screen_width - current_best_car_performance_text.getGlobalBounds().width - RIGHT_PADDING,
                 current_max_move_per_gen_text.getGlobalBounds().top + current_max_move_per_gen_text.getGlobalBounds().height + LINE_PADDING);
