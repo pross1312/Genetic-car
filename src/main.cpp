@@ -5,7 +5,7 @@
 #define LINE_PADDING 10
 #define RIGHT_PADDING 5
 #define STUCK_TOLERANCE 5
-#define MAX_MOVE_INCREMENT 10
+#define MAX_MOVE_INCREMENT 20
 #define STUCK_COLOR 0xff632eff
 
 // genetic optimization for automatic car...
@@ -14,7 +14,7 @@
 // read configuration form config file.
 
 inline const sf::Color background = sf::Color::Black;
-inline const int tournament_size = 5;
+inline size_t tournament_size = 0;
 inline bool training = false;
 inline bool show_eye_line = false;
 inline float mutation_rate = 0.0f;
@@ -57,6 +57,7 @@ int main(int argc, char** argv) {
             mutation_rate = std::stof(argv[3]);
             assert(std::stoi(argv[4]) >= 0);
             init_population = std::stoi(argv[4]);
+            tournament_size = std::max<size_t>(size_t(init_population/5), 1ull);
             map_file = argv[5];
             agent_file = argv[6];
         }
@@ -156,9 +157,9 @@ void handle_training_mode() {
         printf("%s\n", e.what());
     }
 
-    int max_move = 30;
+    int max_move = 100;
     int movelefts = max_move;
-    auto comp_performance = [](const Car& a, const Car& b) {
+    auto comp_performance = [](const Car& a, const Car& b) { // return true if a < b
         if (a.getLap() < b.getLap())
             return true;
         else if (a.getLap() == b.getLap()
@@ -200,9 +201,9 @@ void handle_training_mode() {
             // if (movelefts == 0 && best_car_tracker != nullptr && path.contains(best_car_tracker->getPosition())) {
             //     max_move += MAX_MOVE_INCREMENT;
             // }
-            auto bestCar = std::max_element(poolCar.begin(), poolCar.end(), comp_performance);
-            bestCar->saveBrainToFile(agent_file);
-            float new_best_performance = bestCar->getTravelDistance(path);
+            auto best_car = std::max_element(poolCar.begin(), poolCar.end(), comp_performance);
+            best_car->saveBrainToFile(agent_file);
+            float new_best_performance = best_car->getTravelDistance(path);
             // if (best_car_performance != 0.0f) {
             //     assert((new_best_performance >= best_car_performance ||
             //            best_car_performance - new_best_performance <= 2)
@@ -217,16 +218,21 @@ void handle_training_mode() {
             best_car_performance = new_best_performance;
             std::fill(onMovingCar.begin(), onMovingCar.end(), true);
             std::vector<Car> new_generation;
-            new_generation.push_back(*bestCar);
+            new_generation.push_back(*best_car);
+            std::sort(poolCar.begin(), poolCar.end(), comp_performance);
             for (size_t i = 1; i < init_population; i++) {
-                int rand_idx = rand() % (init_population - tournament_size);
-                auto p1 = std::max_element(poolCar.begin() + rand_idx,
-                                           poolCar.begin() + rand_idx + tournament_size,
-                                           comp_performance);
-                rand_idx = rand() % (init_population - tournament_size);
-                auto p2 = std::max_element(poolCar.begin() + rand_idx,
-                                           poolCar.begin() + rand_idx + tournament_size,
-                                           comp_performance);
+                Car* p1 = &poolCar[0];
+                Car* p2 = &poolCar[0];
+                for (size_t tournament = 0; tournament < tournament_size; tournament++) {
+                    int rand_idx1 = rand() % init_population;
+                    if (comp_performance(*p1, poolCar[rand_idx1])) {
+                        p1 = &poolCar[rand_idx1];
+                    }
+                    int rand_idx2 = rand() % init_population;
+                    if (comp_performance(*p2, poolCar[rand_idx2])) {
+                        p2 = &poolCar[rand_idx2];
+                    }
+                }
                 Car temp{ *p1, *p2 };
                 new_generation.push_back(temp);
                 // too stuct??? then mutate like crazy

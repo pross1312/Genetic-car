@@ -12,22 +12,12 @@ Car::Car(const char* imagePath)
     auto bound = _sprite.getLocalBounds();
     _sprite.setOrigin(bound.width / 2, bound.height / 2);
     _sprite.setScale(scale);
-    _sprite.setRotation(0);
-    bound = _sprite.getGlobalBounds();
-    _localEyePosition.x = 0;
-    _localEyePosition.y = 0;
-
-    _eye.setPosition(_localEyePosition + _sprite.getPosition());
-    lap = 0;
-    lastCheckPoint = 1;
-    forward.x = 1;
-    forward.y = 0;
+    reset();
 }
 
 void Car::reset() {
     accelerator = 0;
     forward = { 1, 0 };
-    _sprite.setRotation(0);
     movement.moveforward = false;
     _sprite.setRotation(0);
     movement.rotate = Rotate::None;
@@ -52,33 +42,24 @@ Car::Car(const Car& p1, const Car& p2)
     _localEyePosition.y = 0;
 
     _eye.setPosition(_localEyePosition + _sprite.getPosition());
-    lap = 0;
+    lap            = 0;
     lastCheckPoint = 1;
-    forward.x = 1;
-    forward.y = 0;
+    forward.x      = 1;
+    forward.y      = 0;
 }
 
 Car::Car(const Car& base)
     : _brain{base._brain}, _eye{base._eye}, _texture{base._texture}, _sprite{base._sprite} {
 }
+
 Car& Car::operator=(const Car& b) {
-    assert(false && "Not working correctly");
-    _brain = b._brain;
-    _eye = b._eye;
-    _texture = b._texture;
-    _sprite = b._sprite;
+    _brain     = b._brain;
+    _eye       = b._eye;
+    _texture   = b._texture;
+    _sprite    = b._sprite;
     auto bound = _sprite.getLocalBounds();
     _sprite.setOrigin(bound.width / 2, bound.height / 2);
-    _sprite.setScale(scale);
-    _sprite.setRotation(0);
-    bound = _sprite.getGlobalBounds();
-    _localEyePosition.x = 0;
-    _localEyePosition.y = 0;
-    _eye.setPosition(_localEyePosition + _sprite.getPosition());
-    lap = 0;
-    lastCheckPoint = 1;
-    forward.x = 1;
-    forward.y = 0;
+    reset();
     return *this;
 }
 
