@@ -1,7 +1,7 @@
 #include "Car.h"
 #include <exception>
 Car::Car(const char* imagePath)
-    : _brain{ {11, 5}, relu_activate }, _eye{ 18, 11} {
+    : _brain{ {15, 3}, relu_activate }, _eye{ 12, 15} {
     sf::Image image;
     if (!image.loadFromFile(imagePath))
         throw std::invalid_argument("Can't load car image.");
@@ -16,18 +16,17 @@ Car::Car(const char* imagePath)
 }
 
 void Car::reset() {
-    accelerator = 0;
-    forward = { 1, 0 };
-    movement.moveforward = false;
-    _sprite.setRotation(0);
-    movement.rotate = Rotate::None;
+    accelerator         = 0;
+    forward             = { 1, 0 };
+    rotate_movement     = Rotate::None;
     _localEyePosition.x = 0;
     _localEyePosition.y = 0;
+    lap                 = 0;
+    lastCheckPoint      = 1;
+    forward.x           = 1;
+    forward.y           = 0;
     _eye.setPosition(_localEyePosition + _sprite.getPosition());
-    lap = 0;
-    lastCheckPoint = 1;
-    forward.x = 1;
-    forward.y = 0;
+    _sprite.setRotation(0);
 }
 
 Car::Car(const Car& p1, const Car& p2)
@@ -53,6 +52,7 @@ Car::Car(const Car& base)
 }
 
 Car& Car::operator=(const Car& b) {
+    assert(false && "Not working properly");
     _brain     = b._brain;
     _eye       = b._eye;
     _texture   = b._texture;
@@ -63,11 +63,7 @@ Car& Car::operator=(const Car& b) {
     return *this;
 }
 
-
-
 Car::Car(): Car("./resources/Car_agent.jpeg") {}
-
-
 
 void Car::translate(const sf::Vector2f& velocity) {
     _sprite.move(velocity);
@@ -78,38 +74,29 @@ void Car::think(const Path& path) {
     Eigen::VectorXf input = _eye.senseDistance(path);
     Eigen::VectorXf output = _brain.forward_propagate(input);
     unsigned decision = std::max_element(output.begin(), output.end()) - output.begin();
-    if (decision == 0)
-        movement.rotate = Rotate::Up;
-    else if (decision == 1)
-        movement.rotate = Rotate::Down;
-    else if (decision == 2)
-        movement.moveforward = true;
-    else if (decision == 3)
-        movement.moveforward = false;
-    else if (decision == 4)
-        movement.rotate = Rotate::None;
+    switch (decision) {
+        case 0: rotate_movement = Rotate::Up;
+                break;
+        case 1: rotate_movement = Rotate::Down;
+                break;
+        case 2: rotate_movement = Rotate::None;
+                break;
+        default: assert(false && "Unknown decision");
+    }
 }
+
 void Car::control(const sf::Event& event) {
     if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::W) {
-            movement.moveforward = true;
-        }
-        else if (event.key.code == sf::Keyboard::S) {
-            movement.moveforward = false;
-        }
-        else if (event.key.code == sf::Keyboard::A) {
-            movement.rotate = Rotate::Up;
+        if (event.key.code == sf::Keyboard::A) {
+            rotate_movement = Rotate::Up;
         }
         else if (event.key.code == sf::Keyboard::D) {
-            movement.rotate = Rotate::Down;
+            rotate_movement = Rotate::Down;
         }
     }
     else if (event.type == sf::Event::KeyReleased) {
         if (event.key.code == sf::Keyboard::A || event.key.code == sf::Keyboard::D) {
-            movement.rotate = Rotate::None;
-        }
-        else if (event.key.code == sf::Keyboard::W) {
-            movement.moveforward = false;
+            rotate_movement = Rotate::None;
         }
     }
 }
@@ -137,21 +124,17 @@ void Car::showLine(sf::RenderTarget& target, const Path& path) const {
 }
 
 void Car::move() {
-    if (movement.moveforward) {
-        moveForward();
-        accelerator += 0.3f;
-    }
-    else
-        accelerator = 0.0f;
-    if (movement.moveforward && movement.rotate == Rotate::Up) {
+    if (rotate_movement == Rotate::Up) {
         rotate(rotateAngle);
         accelerator = 0.0f;
     }
-    else if (movement.moveforward && movement.rotate == Rotate::Down) {
+    else if (rotate_movement == Rotate::Down) {
         rotate(-rotateAngle);
         accelerator = 0.0f;
+    } else {
+        accelerator += ACCELERATE;
     }
-
+    move_forward();
 }
 
 void Car::saveBrainToFile(const char* fName) const {

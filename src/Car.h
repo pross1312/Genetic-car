@@ -9,12 +9,6 @@ enum Rotate {
 	Down,
 };
 
-struct Movement {
-	bool moveforward = false;
-	Rotate rotate = None;
-};
-
-
 class Car: public sf::Drawable {
 public:
 	Car();
@@ -39,7 +33,7 @@ public:
     // update car in for on path (like lap, check point ....)
 	void update(const Path& path);
     void reset();
-	inline void moveForward()                             { translate(Helper::mul(forward, velocity + accelerator)); }
+	inline void move_forward()                            { translate(Helper::mul(forward, velocity + accelerator)); }
 	inline void setPosition(const sf::Vector2f& position) { _sprite.setPosition(position); }
 	inline void setPosition(float x, float y)             { setPosition(sf::Vector2f{ x, y }); }
 	inline float getRotation() const                      { return _sprite.getRotation(); }
@@ -47,7 +41,7 @@ public:
 	inline sf::Vector2f getPosition() const               { return _sprite.getPosition(); }
     inline int getLap() const                             { return lap; }
 	inline int getLastCheckPoint() const                  { return lastCheckPoint; }
-	Movement movement;
+    Rotate rotate_movement;
 
 private:
     // return car position on path (projection point from car position on to _spline_array)
@@ -59,6 +53,7 @@ private:
 	inline static const sf::Vector2f scale{ 0.1f, 0.1f };
 	inline static const float velocity = 8.0f;
 	inline static const float rotateAngle = 6.0f;
+    inline static const float ACCELERATE = 0.3f;
 
 	float accelerator = 0.0f;
 	int lastCheckPoint = 1;

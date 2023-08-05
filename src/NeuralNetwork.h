@@ -34,7 +34,7 @@ public:
     NeuralNetwork reproduce(const NeuralNetwork& n) const;
 private:
 	std::vector<int> topology;
-	std::vector<std::shared_ptr<Eigen::MatrixXf>> weights;
-	std::vector<std::shared_ptr<Eigen::VectorXf>> biases;
+	std::vector<Eigen::MatrixXf> weights;
+	std::vector<Eigen::VectorXf> biases;
 	std::function<float(float)> activation;
 };

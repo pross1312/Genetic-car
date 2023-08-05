@@ -28,8 +28,8 @@ public:
 	void draw(sf::RenderTarget& target, const Path& path) const;
 	void draw(sf::RenderTarget& target, const sf::Vector2f& A, const sf::Vector2f& B) const;
 private:
-	// in degree
-	unsigned _distancePerRay = 20;
+	
+	unsigned _distancePerRay = 20; // in degree
 	unsigned _nRays = 7;
     float rotation = 0.0f;
 

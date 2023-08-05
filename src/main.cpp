@@ -124,13 +124,17 @@ void handle_compete_mode() {
                 sf::Text dis_text(std::to_string(1.0 / dis), font);
                 dis_text.setPosition(Config::screen_width - 150, 0);
                 _window.draw(dis_text);
+                human.update(path);
             }
             if (path.contains(agent.getPosition())) {
                 agent.think(path);
                 agent.move();
+                agent.update(path);
+                agent.showEyeLine(_window, path);
             }
-            human.update(path);
-            agent.update(path);
+            else {
+                printf("Agent out of path\n");
+            }
         }
         _window.draw(agent);
         _window.draw(human);
@@ -219,7 +223,6 @@ void handle_training_mode() {
             std::fill(onMovingCar.begin(), onMovingCar.end(), true);
             std::vector<Car> new_generation;
             new_generation.push_back(*best_car);
-            std::sort(poolCar.begin(), poolCar.end(), comp_performance);
             for (size_t i = 1; i < init_population; i++) {
                 Car* p1 = &poolCar[0];
                 Car* p2 = &poolCar[0];
@@ -247,7 +250,7 @@ void handle_training_mode() {
             for (auto& c : poolCar) {
                 c.reset();
                 c.setPosition(start_param.first);
-                c.setRotation(start_param.second);
+                c.setRotation(start_param.second + (rand()%10) * (rand()%10 >= 5 ? -1 : 1));
             }
             current_alive = init_population;
             movelefts = max_move;
