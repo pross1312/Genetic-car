@@ -2,98 +2,73 @@
 #include "Helper.h"
 #include <exception>
 #include <iostream>
-Spline::Spline(): _curves{ Config::nCurves }, _splineArray{ sf::LineStrip, 0 } {
-    if (Config::nCurves < 1)
-        throw std::invalid_argument("Number of vertex can't be less than 2.");
-    nControlPoints = 2 * Config::nCurves;
-    for (unsigned i = 0; i < Config::nCurves; i++) {
-        if (i > 0) {
-            _curves[i].start = _curves[i - 1].end;
-        }
-        else {
-            _curves[i].start = std::make_shared<sf::CircleShape>(Config::jointRadius);
-            _curves[i].start->setOrigin(Config::jointRadius, Config::jointRadius);
-            _curves[i].start->setFillColor(Config::joint_color);
-            _curves[i].start->setPosition((i + 1) * 100, (i + 1) * 100);
-        }
-        if (i == Config::nCurves - 1) {
-            _curves[i].end = _curves[0].start;
-        }
-        else {
-            _curves[i].end = std::make_shared<sf::CircleShape>(Config::jointRadius);
-            _curves[i].end->setOrigin(Config::jointRadius, Config::jointRadius);
-            _curves[i].end->setFillColor(Config::joint_color);
-            _curves[i].end->setPosition((i + 1) * 100 + 60, (i + 1) * 100 + 60);
+#define PTR std::make_shared
+using Vec2f = sf::Vector2f;
+extern Config config;
 
-        }
+Spline::Spline(size_t nJoints, size_t vertices_per_curve):
+    vertices_per_curve { vertices_per_curve },
+    joints             { nJoints   }, // start - end - start - end - ...
+    joint_ctrls        { nJoints*2 },
+    vArray             { sf::LineStrip, nJoints * vertices_per_curve } {
+    size_t w = config.screen_w;
+    size_t h = config.screen_h;
+    float angle = M_PI;
+    float angle_step = 2.0*M_PI / nJoints;
+    float radius = 400;
+    float dis = 80;
+    for (size_t i = 0; i < nJoints; i++) {
+        float x = std::cos(angle)*radius + w/2.0f;
+        float y = std::sin(angle)*radius + h/2.0f;
+        joints[i] = Vec2f{ x, y };
+        angle += angle_step;
 
-        _curves[i].startCtrl = std::make_shared<sf::RectangleShape>((sf::Vector2f) { Config::ctrlPointSize, Config::ctrlPointSize });
-        _curves[i].endCtrl = std::make_shared<sf::RectangleShape>((sf::Vector2f) { Config::ctrlPointSize, Config::ctrlPointSize });
-
-
-        _curves[i].startCtrl->setOrigin(Config::ctrlPointSize / 2.0f, Config::ctrlPointSize / 2.0f);
-        _curves[i].startCtrl->setFillColor(Config::ctrl_point_color);
-        _curves[i].startCtrl->setPosition((i + 1) * 100 + 20, (i + 1) * 100 + 20);
-
-        _curves[i].endCtrl->setOrigin(Config::ctrlPointSize / 2.0f, Config::ctrlPointSize / 2.0f);
-        _curves[i].endCtrl->setFillColor(Config::ctrl_point_color);
-        _curves[i].endCtrl->setPosition((i + 1) * 100 + 40, (i + 1) * 100 + 40);
-        _curves[i].update();
+        Vec2f rp = joints[i] - Vec2f{ w/2.0f, h/2.0f };
+        rp = Helper::normalized(rp);
+        rp = Helper::rotated(rp, 90.0f);
+        joint_ctrls[2*i]     = joints[i] + rp*dis;
+        joint_ctrls[2*i + 1] = joints[i] - rp*dis;
     }
     update();
 }
 
-std::shared_ptr<sf::RectangleShape>& Spline::getCtrlPoint(unsigned index) {
-    if (index % 2 == 0)
-        return _curves[index / 2].startCtrl;
-    return _curves[(index - 1) / 2].endCtrl;
+void Spline::draw(sf::RenderTarget& target, sf::RenderStates state) const {
+    target.draw(vArray, state);
 }
 
 void Spline::update() {
-
-    int n = Config::nVertexs;
-
-    if (_splineArray.getVertexCount() != (n - 1) * _curves.size() + 2)
-        _splineArray.resize((n - 1) * _curves.size() + 2);
-
-    for (size_t j = 0; j < _curves.size(); j++) {
-        _curves[j].update();
-        const sf::VertexArray& vArray = _curves[j].vArray;
-        for (int i = 0; i < n - 1; i++)
-            _splineArray[(j * (n - 1)) + i + 1] = vArray[i];
+    if (vArray.getVertexCount() != joints.size()*vertices_per_curve) {
+        vArray.resize(joints.size() * vertices_per_curve);
     }
-    _splineArray[0] = (*--_curves.end()).vArray[n - 1];
-    _splineArray[_splineArray.getVertexCount() - 1] = _curves[0].vArray[0];
-}
-
-
-
-void Spline::draw(sf::RenderTarget& target, sf::RenderStates state) const {
-    (void)state;
-    sf::VertexArray line{ sf::Lines, 2 };
-    target.draw(_splineArray);
-    for (size_t i = 0; i < _curves.size(); i++) {
-        Helper::drawLine(target, _curves[0].start->getPosition(), _curves[0].startCtrl->getPosition(), Config::line_color);
-        Helper::drawLine(target, _curves[0].end->getPosition(), _curves[0].endCtrl->getPosition(), Config::line_color);
-        target.draw(*_curves[i].start);
-        target.draw(*_curves[i].startCtrl);
-        target.draw(*_curves[i].endCtrl);
+    for (size_t i = 0; i < joints.size(); i++) {
+        Vec2f start, end;
+        auto ctrls = get_curve_ctrl_point(i);
+        start = joints[i];
+        end = i == joints.size()-1 ? joints[0] : joints[i+1];
+        for (size_t vertex = 0; vertex < vertices_per_curve; vertex++) {
+            size_t v_index = i*vertices_per_curve + vertex;
+            vArray[v_index].position = Helper::cubic_bezier_lerp(
+                    start, end, ctrls.first, ctrls.second,
+                    1.0f * vertex / (vertices_per_curve - 1));
+            vArray[v_index].color = config.spline_color;
+        }
     }
 }
-
-
-void Spline::readFromFile(std::ifstream& fin) {
-    // change number of curves in config and regenerate spline
-    fin >> Config::nCurves;
-    if (_curves.size() == Config::nCurves) {
-        for (unsigned i = 0; i < Config::nCurves; i++)
-            _curves[i].readFromFile(fin);
+std::pair<Vec2f, size_t> Spline::projected_point(Vec2f point) const {
+    auto result = std::make_pair(Vec2f(-1, -1), -1);
+    float min_dis = 1e9;
+    for (size_t i = 0; i < vArray.getVertexCount(); i++) {
+        auto projected_point_option = Helper::projected_point_on_line(
+                point,
+                vArray[i].position,
+                vArray[(i+1) % vArray.getVertexCount()].position);
+        auto projected_point = projected_point_option ? projected_point_option.value() : vArray[i].position;
+        float temp_dis = Helper::distance(point, projected_point);
+        if (temp_dis < min_dis) {
+            result.first = projected_point;
+            result.second = i;
+            min_dis = temp_dis;
+        }
     }
-    else {
-        Spline temp{};
-        *this = temp;
-        for (unsigned i = 0; i < Config::nCurves; i++)
-            _curves[i].readFromFile(fin);
-    }
-    update();
+    return result;
 }

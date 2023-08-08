@@ -20,15 +20,15 @@ public:
     }
 	~Eye() = default;
 
-	Eigen::VectorXf senseDistance(const Path& path) const;
-	Eigen::VectorXf senseDistance(const sf::Vector2f& A, const sf::Vector2f& B) const;
+	Eigen::VectorXf sense(const Path& path) const;
+	Eigen::VectorXf sense(const sf::Vector2f& A, const sf::Vector2f& B) const;
 	void rotate(float angle);
 	inline void setRotation(float angle) { rotate(-rotation); rotate(angle); rotation = angle; }
 	void setPosition(const sf::Vector2f& position) { *_position = position; }
 	void draw(sf::RenderTarget& target, const Path& path) const;
 	void draw(sf::RenderTarget& target, const sf::Vector2f& A, const sf::Vector2f& B) const;
+
 private:
-	
 	unsigned _distancePerRay = 20; // in degree
 	unsigned _nRays = 7;
     float rotation = 0.0f;

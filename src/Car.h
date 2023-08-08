@@ -25,10 +25,10 @@ public:
 	void move();
     void control(const sf::Event& event);
 	void mutate();
-	void saveBrainToFile(const char* fName) const;
-	void readBrainFromFile(const char* fName);
-	double getTravelDistance(const Path& path) const;
-	void showLine(sf::RenderTarget& target, const Path& path) const;
+	void save_brain(const char* fName) const;
+	void load_brain(const char* fName);
+	float get_travel_distance(const Path& path) const;
+	void show_line(sf::RenderTarget& target, const Path& path) const;
 
     // update car in for on path (like lap, check point ....)
 	void update(const Path& path);
@@ -56,7 +56,7 @@ private:
     inline static const float ACCELERATE = 0.3f;
 
 	float accelerator = 0.0f;
-	int lastCheckPoint = 1;
+	size_t lastCheckPoint = 0;
 	int lap = 0;
 	NeuralNetwork _brain;
 	sf::Vector2f _localEyePosition;

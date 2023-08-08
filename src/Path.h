@@ -9,40 +9,27 @@ class Path: public sf::Drawable {
 public:
     Path();
     ~Path() = default;
-    void draw(sf::RenderTarget& target, sf::RenderStates state) const override;
-    void readFromFile(const char* fName);
-    void update();
+	void draw(sf::RenderTarget& target, sf::RenderStates state) const override;
+	void save(const char* fName);
+	void load(const char* fName);
+    void zoom(Vec2f center, float ratio);
+    void update_cache_lengths();
+	void update();
+    float project_and_get_length(const sf::Vector2f& position) const; // project point onto spline and get distance from start
 
-    // return projection point of a position on to spline of path and the last past vertex...
-    std::pair<sf::Vector2f, int> getPositionOnSpline(const sf::Vector2f& position) const;
-
-    // return the travel distance along the spline for a position by project it
-    // orthogonally to the spline.
-    double getDistanceTravel(const sf::Vector2f& position) const;
-
-
-    inline double getPathLength() const                        { return _pre_computed_length[_pre_computed_length.size()-1]; }
-    inline const sf::ConvexShape& getConvex1() const           { return pathShape1; }
-    inline const sf::ConvexShape& getConvex2() const           { return pathShape2; }
-    inline const sf::VertexArray& getSplineArray() const       { return _spline._splineArray; }
-    inline pair<sf::Vector2f, float> getStartPosition() const {
-        const auto a = _spline._splineArray[1].position;
-        const auto b = _spline._splineArray[2].position;
-        return std::make_pair(a,
-                             Helper::angleBetween2Vec(b-a, sf::Vector2<float>{1, 0}) * 180 / M_PI);
+    inline pair<sf::Vector2f, float> get_start_param() const { // return position and rotation needed
+        const auto a = spline.vArray[0].position;
+        const auto b = spline.vArray[1].position;
+        return std::make_pair(a, Helper::angle_of_2_vec(b-a, Vec2f(1.0f, 0.0f)) * 180 / M_PI);
     }
     inline bool contains(const sf::Vector2f& position)         {
-        return Helper::contains(pathShape1, position) && !Helper::contains(pathShape2, position);
+        return Helper::contains(outer_shape, position) && !Helper::contains(inner_shape, position);
     }
+    inline float full_length() const { return cache_lengths[cache_lengths.size()-1]; }
 
-    // update in case their is any change to path
-    // calculate value for pre computed length array
-    void updatePreComputedLength();
-private:
 
     // array to store pre calculated length of curves in path
-    inline static std::vector<double> _pre_computed_length;
-    bool onEditing1 = true;
-    Spline _spline;
-    sf::ConvexShape pathShape1, pathShape2;
+    inline static std::vector<float> cache_lengths;
+    Spline spline;
+	sf::ConvexShape outer_shape, inner_shape;
 };

@@ -2,11 +2,14 @@
 #include "Car.h"
 #include <list>
 
+#define SCROLL_SENSITIVITY 20
 #define LINE_PADDING 10
 #define RIGHT_PADDING 5
 #define STUCK_TOLERANCE 5
 #define MAX_MOVE_INCREMENT 20
 #define STUCK_COLOR 0xff632eff
+
+Config config("config");
 
 // genetic optimization for automatic car...
 // -_- pretty dumb code.
@@ -23,10 +26,9 @@ inline size_t stuck_count = 0;
 inline bool try_fix = false;
 inline const char* map_file = NULL;
 inline const char* agent_file = NULL;
-inline sf::RenderWindow _window{ sf::VideoMode(Config::screen_width, Config::screen_height), "CarGenetic" };
-inline sf::Event _event{};
+inline sf::RenderWindow window{ sf::VideoMode(config.screen_w, config.screen_h), "CarGenetic" };
+inline sf::Event event{};
 inline Path path{};
-inline sf::Clock prog_clock{};
 inline sf::Font font;
 inline Car* best_car_tracker = nullptr;
 inline sf::Vector2f best_car_old_pos = {-1, -1};
@@ -43,8 +45,6 @@ void usage() {
 }
 
 int main(int argc, char** argv) {
-    Config::read_config("config");
-
     if (argc <= 1) {
         usage();
         fprintf(stderr, "Error: no subcommand provided\n");
@@ -73,9 +73,9 @@ int main(int argc, char** argv) {
         printf("Error: %s\n", e.what());
         exit(EXIT_FAILURE);
     }
-    _window.setFramerateLimit(24);
+    window.setFramerateLimit(24);
     font.loadFromFile("resources/VictorMono.ttf");
-    path.readFromFile(map_file);
+    path.load(map_file);
     if (training) {
         handle_training_mode();
     }
@@ -88,110 +88,124 @@ int main(int argc, char** argv) {
 void handle_compete_mode() {
     Car agent {"resources/Car_agent.jpeg"};
     Car human {"resources/Car_human.jpeg"};
-    agent.readBrainFromFile(agent_file);
-    auto start_param = path.getStartPosition();
-    printf("%f\n", start_param.second);
-    agent.setPosition(start_param.first);
-    agent.setRotation(start_param.second);
-    human.setPosition(start_param.first);
-    human.setRotation(start_param.second);
+    agent.load_brain(agent_file);
+    auto[start_position, start_rotation] = path.get_start_param();
+    agent.setPosition(start_position);
+    agent.setRotation(start_rotation);
+    human.setPosition(start_position);
+    human.setRotation(start_rotation);
     bool start = false;
-    while (_window.isOpen()) {
-        while (_window.pollEvent(_event)) {
-            if (_event.type == sf::Event::Closed)
-                _window.close();
-            else if (_event.type == sf::Event::KeyPressed) {
-                if (_event.key.code == sf::Keyboard::R) {
+    while (window.isOpen()) {
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed)
+                window.close();
+            else if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::R) {
                     human.reset();
                     agent.reset();
-                    agent.setPosition(start_param.first);
-                    agent.setRotation(start_param.second);
-                    human.setPosition(start_param.first);
-                    human.setRotation(start_param.second);
+                    agent.setPosition(start_position);
+                    agent.setRotation(start_rotation);
+                    human.setPosition(start_position);
+                    human.setRotation(start_rotation);
                     start = false;
                 } else {
                     start = true;
                 }
             }
-            human.control(_event);
+            human.control(event);
         }
-        _window.clear();
-        _window.draw(path);
+        auto view = window.getView();
+        view.setCenter(agent.getPosition());
+        window.setView(view);
+        window.clear();
+        window.draw(path);
         if (start) {
             if (path.contains(human.getPosition())) {
                 human.move();
-                float dis = human.getTravelDistance(path);
+                float dis = human.get_travel_distance(path);
                 sf::Text dis_text(std::to_string(1.0 / dis), font);
-                dis_text.setPosition(Config::screen_width - 150, 0);
-                _window.draw(dis_text);
+                dis_text.setPosition(config.screen_w - 150, 0);
+                window.draw(dis_text);
                 human.update(path);
             }
             if (path.contains(agent.getPosition())) {
                 agent.think(path);
                 agent.move();
                 agent.update(path);
-                agent.showEyeLine(_window, path);
+                agent.showEyeLine(window, path);
             }
             else {
                 printf("Agent out of path\n");
             }
         }
-        _window.draw(agent);
-        _window.draw(human);
-        _window.display();
+        window.draw(agent);
+        window.draw(human);
+        window.display();
     }
 }
-
-
 
 void handle_training_mode() {
     std::vector<Car> poolCar{init_population};
     std::vector<bool> onMovingCar;
-    int current_alive = init_population;
+    size_t current_alive = init_population;
     float best_car_performance = 0.0f;
-    auto start_param = path.getStartPosition();
+    auto[start_position, start_rotation] = path.get_start_param();
     for (size_t i = 0; i < init_population; i++) {
-        poolCar[i].setPosition(start_param.first);
-        poolCar[i].setRotation(start_param.second);
+        poolCar[i].setPosition(start_position);
+        poolCar[i].setRotation(start_rotation);
         onMovingCar.push_back(true);
     }
     try {
-        poolCar[0].readBrainFromFile(agent_file);
+        poolCar[0].load_brain(agent_file);
     } catch (const std::exception& e) {
         printf("%s\n", e.what());
     }
 
-    int max_move = 100;
-    int movelefts = max_move;
+    size_t max_move = 100;
+    size_t movelefts = max_move;
     auto comp_performance = [](const Car& a, const Car& b) { // return true if a < b
         if (a.getLap() < b.getLap())
             return true;
         else if (a.getLap() == b.getLap()
-            && path.getDistanceTravel(a.getPosition()) < path.getDistanceTravel(b.getPosition()))
+            && path.project_and_get_length(a.getPosition()) < path.project_and_get_length(b.getPosition()))
             return true;
         return false;
     };
 
-    while (_window.isOpen()) {
-        prog_clock.restart();
-        while (_window.pollEvent(_event)) {
-            if (_event.type == sf::Event::Closed)
-                _window.close();
-            else if (_event.type == sf::Event::KeyPressed) {
-                if (_event.key.code == sf::Keyboard::Up) {
+    while (window.isOpen()) {
+        while (window.pollEvent(event)) {
+            switch (event.type) {
+            case sf::Event::Closed:
+                window.close();
+                break;
+            case sf::Event::KeyPressed: {
+                if (event.key.code == sf::Keyboard::Up) {
                     max_move += MAX_MOVE_INCREMENT;
                 }
-                else if (_event.key.code == sf::Keyboard::Down && max_move > 30) {
+                else if (event.key.code == sf::Keyboard::Down && max_move > 30) {
                     max_move -= MAX_MOVE_INCREMENT;
                 }
-                else if (_event.key.code == sf::Keyboard::S) {
+                else if (event.key.code == sf::Keyboard::S) {
                     show_eye_line = !show_eye_line;
                 }
-                else if (_event.key.code == sf::Keyboard::S) {
+                else if (event.key.code == sf::Keyboard::S) {
                     printf("Stuck: %zu\n", stuck_count);
                 }
-            }
-            else if (_event.type == sf::Event::KeyReleased) {
+            } break;
+            case sf::Event::MouseWheelScrolled: {
+                auto view = window.getView();
+                auto center = view.getCenter();
+                auto& wheel_event = event.mouseWheelScroll;
+                if (wheel_event.wheel == sf::Mouse::VerticalWheel)
+                    center.y -= wheel_event.delta * SCROLL_SENSITIVITY;
+                else if (wheel_event.wheel == sf::Mouse::HorizontalWheel)
+                    center.x -= wheel_event.delta * SCROLL_SENSITIVITY;
+                else
+                    assert(false);
+                view.setCenter(center);
+                window.setView(view);
+            } break;
+            default: break;
             }
         }
 
@@ -202,17 +216,9 @@ void handle_training_mode() {
 
         // end of a generation
         if (current_alive == 0 || movelefts <= 0) {
-            // if (movelefts == 0 && best_car_tracker != nullptr && path.contains(best_car_tracker->getPosition())) {
-            //     max_move += MAX_MOVE_INCREMENT;
-            // }
             auto best_car = std::max_element(poolCar.begin(), poolCar.end(), comp_performance);
-            best_car->saveBrainToFile(agent_file);
-            float new_best_performance = best_car->getTravelDistance(path);
-            // if (best_car_performance != 0.0f) {
-            //     assert((new_best_performance >= best_car_performance ||
-            //            best_car_performance - new_best_performance <= 2)
-            //            && "Best car will be passed on to next generation so performance can't get too worse than before");
-            // }
+            best_car->save_brain(agent_file);
+            float new_best_performance = best_car->get_travel_distance(path);
             if (best_car_performance < new_best_performance) {
                 stuck_count = 0;
                 try_fix = false;
@@ -238,66 +244,53 @@ void handle_training_mode() {
                 }
                 Car temp{ *p1, *p2 };
                 new_generation.push_back(temp);
-                // too stuct??? then mutate like crazy
+                // too stuct??? then mutate more
                 if (rand() % 100 < (mutation_rate + stuck_count/100) * 100) {
                     new_generation[i].mutate();
-                    if (stuck_count > STUCK_TOLERANCE + 5)
-                        new_generation[i].mutate();
+                    if (stuck_count > STUCK_TOLERANCE) new_generation[i].mutate();
                 }
             }
             poolCar.clear();
             poolCar = new_generation;
             for (auto& c : poolCar) {
                 c.reset();
-                c.setPosition(start_param.first);
-                c.setRotation(start_param.second + (rand()%10) * (rand()%10 >= 5 ? -1 : 1));
+                c.setPosition(start_position);
+                c.setRotation(start_rotation + (rand()%10) * (rand()%10 >= 5 ? -1 : 1));
             }
             current_alive = init_population;
             movelefts = max_move;
             best_car_tracker = &poolCar[0];
         }
 
-        _window.clear(Config::back_ground);
-        _window.draw(path);
+        window.clear(config.back_ground);
+        window.draw(path);
         for (size_t i = 0; i < init_population; i++) {
             if (onMovingCar[i]) {
                 if (path.contains(poolCar[i].getPosition())) {
                     poolCar[i].think(path);
                     poolCar[i].move();
                     poolCar[i].update(path);
-                    if (show_eye_line) poolCar[i].showEyeLine(_window, path);
+                    if (show_eye_line) poolCar[i].showEyeLine(window, path);
                 }
                 else {
                     onMovingCar[i] = false;
                     current_alive--;
                 }
             }
-            _window.draw(poolCar[i]);
+            window.draw(poolCar[i]);
         }
         movelefts--;
 
-        float frame_second = prog_clock.getElapsedTime().asSeconds();
-        sf::Text fps(std::string("FPS: ") + std::to_string(1.0 / frame_second), font);
-        fps.setPosition(Config::screen_width - fps.getGlobalBounds().width - RIGHT_PADDING, 0);
-        _window.draw(fps);
-
-        sf::Text current_max_move_per_gen_text(std::string("Max move: ") + std::to_string(max_move), font);
-        current_max_move_per_gen_text.setPosition(
-                Config::screen_width - current_max_move_per_gen_text.getGlobalBounds().width - RIGHT_PADDING,
-                fps.getGlobalBounds().height + LINE_PADDING);
-        _window.draw(current_max_move_per_gen_text);
-
-        sf::Text current_best_car_performance_text(std::string("Performance: ") + std::to_string(best_car_performance), font);
-        if (stuck_count > STUCK_TOLERANCE) current_best_car_performance_text.setFillColor(sf::Color(STUCK_COLOR));
-        current_best_car_performance_text.setPosition(
-                Config::screen_width - current_best_car_performance_text.getGlobalBounds().width - RIGHT_PADDING,
-                current_max_move_per_gen_text.getGlobalBounds().top + current_max_move_per_gen_text.getGlobalBounds().height + LINE_PADDING);
-        _window.draw(current_best_car_performance_text);
-
-        sf::Text current_alive_text(std::string("Alive: ") + std::to_string(current_alive), font);
-        current_alive_text.setPosition(0, 0);
-        _window.draw(current_alive_text);
-
-        _window.display();
+        char buffer[124] {};
+        sprintf(buffer, "\
+Max move: %zu\n\
+Performance: %f\n\
+Alive: %zu\n", max_move, best_car_performance, current_alive);
+        sf::Text info(buffer, font);
+        Vec2f info_position = Helper::to_world(window, config.screen_w - info.getGlobalBounds().width - RIGHT_PADDING, 0);
+        info.setPosition(info_position);
+        if (stuck_count > STUCK_TOLERANCE) info.setFillColor(sf::Color(STUCK_COLOR));
+        window.draw(info);
+        window.display();
     }
 }

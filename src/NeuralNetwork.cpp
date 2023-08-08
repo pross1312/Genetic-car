@@ -47,7 +47,6 @@ NeuralNetwork::NeuralNetwork(std::vector<int> layerSizes,
         weights.push_back(MatrixXf::Random(layerSizes[i], layerSizes[i-1]));
         weights[weights.size()-1] = 0.5 * (weights[weights.size()-1] + MatrixXf::Constant(layerSizes[i], layerSizes[i-1], 1));
         biases.push_back(VectorXf::Random(layerSizes[i]));
-
     }
 }
 

@@ -71,7 +71,7 @@ void Car::translate(const sf::Vector2f& velocity) {
 }
 
 void Car::think(const Path& path) {
-    Eigen::VectorXf input = _eye.senseDistance(path);
+    Eigen::VectorXf input = _eye.sense(path);
     Eigen::VectorXf output = _brain.forward_propagate(input);
     unsigned decision = std::max_element(output.begin(), output.end()) - output.begin();
     switch (decision) {
@@ -101,26 +101,26 @@ void Car::control(const sf::Event& event) {
     }
 }
 
-double Car::getTravelDistance(const Path& path) const {
-    double current_lap_distance = path.getDistanceTravel(_sprite.getPosition());
-    return current_lap_distance + lap * path.getPathLength();
+float Car::get_travel_distance(const Path& path) const {
+    float current_lap_distance = path.project_and_get_length(_sprite.getPosition());
+    return current_lap_distance + lap * path.full_length();
 }
 
 void Car::update(const Path& path) {
-    auto currentPosition = path.getPositionOnSpline(_sprite.getPosition());
-    int n = path.getSplineArray().getVertexCount();
-    if (lastCheckPoint >= 1 && lastCheckPoint <= 3 && currentPosition.second <= n - 2 && currentPosition.second >= n - 4) {
+    auto[point, index] = path.spline.projected_point(_sprite.getPosition());
+    size_t n = path.spline.vArray.getVertexCount();
+    if (lastCheckPoint >= 1 && lastCheckPoint <= 3 && index <= n - 2 && index >= n - 4) {
         lap--;
     }
-    else if (lastCheckPoint <= n - 2 && lastCheckPoint >= n - 4 && currentPosition.second >= 1 && currentPosition.second <= 3) {
+    else if (lastCheckPoint <= n - 2 && lastCheckPoint >= n - 4 && index >= 1 && index <= 3) {
         lap++;
     }
-    lastCheckPoint = currentPosition.second;
+    lastCheckPoint = index;
 }
 
-void Car::showLine(sf::RenderTarget& target, const Path& path) const {
-    auto positionOnPath = path.getPositionOnSpline(_sprite.getPosition());
-    Helper::drawLine(target, positionOnPath.first, _sprite.getPosition(), sf::Color::Red);
+void Car::show_line(sf::RenderTarget& target, const Path& path) const {
+    auto[point, index] = path.spline.projected_point(_sprite.getPosition());
+    Helper::draw_line(target, point, _sprite.getPosition(), sf::Color::Red);
 }
 
 void Car::move() {
@@ -137,7 +137,7 @@ void Car::move() {
     move_forward();
 }
 
-void Car::saveBrainToFile(const char* fName) const {
+void Car::save_brain(const char* fName) const {
     std::ofstream fout{fName};
     if (!fout.is_open())
         throw std::runtime_error("Can't open file to save brain.");
@@ -145,7 +145,7 @@ void Car::saveBrainToFile(const char* fName) const {
     fout.close();
 }
 
-void Car::readBrainFromFile(const char* fName) {
+void Car::load_brain(const char* fName) {
     std::ifstream fin{fName};
     if (!fin.is_open())
         throw std::runtime_error("Can't open file to read brain.");
@@ -169,18 +169,18 @@ void Car::showEyeLine(sf::RenderTarget& target, const Path& path) {
 
 void Car::rotate(float angle) {
     _sprite.rotate(-angle);
-    Helper::rotate(_localEyePosition, angle);
+    _localEyePosition = Helper::rotated(_localEyePosition, angle);
     _eye.setPosition(_localEyePosition + _sprite.getPosition());
-    Helper::rotate(forward, angle);
+    forward = Helper::rotated(forward, angle);
     _eye.rotate(angle);
 }
 void Car::setRotation(float angle) {
     float temp = - _sprite.getRotation();
     _sprite.setRotation(-angle);
-    Helper::rotate(_localEyePosition, temp);
-    Helper::rotate(_localEyePosition, angle);
+    _localEyePosition = Helper::rotated(_localEyePosition, temp);
+    _localEyePosition = Helper::rotated(_localEyePosition, angle);
     _eye.setPosition(_localEyePosition + _sprite.getPosition());
-    Helper::rotate(forward, temp);
-    Helper::rotate(forward, angle);
+    forward = Helper::rotated(forward, temp);
+    forward = Helper::rotated(forward, angle);
     _eye.setRotation(angle);
 }
