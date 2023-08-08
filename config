@@ -1,14 +1,13 @@
-Screen width: 1920 
-Screen height: 1080
-back ground color: 0 0 0 255
-path color: 90 90 90 90
-path width: 50
-number of curves: 3
-spline color: 255 255 255 255
-joint color: 130 130 130 130
-ctrl_point color: 130 130 130 130
-line color: 130 130 130 90
-joint radius: 10
-ctrl_point size: 10
-curve color: 255 255 255 255
-number of vertexs: 15
+screen_w: 1920
+screen_h: 1080
+path_color: 90 90 90 90
+path_width: 50
+nJoints: 2
+background: 0 0 0 255
+spline_color: 150 150 150 255
+joint_color: 130 130 130 130
+ctrl_point_color: 255 255 255 255
+line_color: 255 255 255 255
+joint_radius: 20
+ctrl_point_size: 15
+vertexes_per_curve: 15
