@@ -26,14 +26,10 @@ inline size_t stuck_count = 0;
 inline bool try_fix = false;
 inline const char* map_file = NULL;
 inline const char* agent_file = NULL;
-inline sf::RenderWindow window{ sf::VideoMode(config.screen_w, config.screen_h), "CarGenetic" };
-inline sf::Event event{};
-inline Path path{};
 inline sf::Font font;
 inline Car* best_car_tracker = nullptr;
-inline sf::Vector2f best_car_old_pos = {-1, -1};
-void handle_training_mode();
-void handle_compete_mode();
+void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path);
+void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path);
 
 void usage() {
     printf("--Usage--\n");
@@ -73,19 +69,22 @@ int main(int argc, char** argv) {
         printf("Error: %s\n", e.what());
         exit(EXIT_FAILURE);
     }
+    sf::RenderWindow window(sf::VideoMode(config.screen_w, config.screen_h), "CarGenetic");
+    sf::Event event;
+    Path path;
     window.setFramerateLimit(24);
     font.loadFromFile("resources/VictorMono.ttf");
     path.load(map_file);
     if (training) {
-        handle_training_mode();
+        handle_training_mode(window, event, path);
     }
     else {
-        handle_compete_mode();
+        handle_compete_mode(window, event, path);
     }
     return 0;
 }
 
-void handle_compete_mode() {
+void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path) {
     Car agent {"resources/Car_agent.jpeg"};
     Car human {"resources/Car_human.jpeg"};
     agent.load_brain(agent_file);
@@ -144,7 +143,7 @@ void handle_compete_mode() {
     }
 }
 
-void handle_training_mode() {
+void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path) {
     std::vector<Car> poolCar{init_population};
     std::vector<bool> onMovingCar;
     size_t current_alive = init_population;
@@ -163,7 +162,7 @@ void handle_training_mode() {
 
     size_t max_move = 100;
     size_t movelefts = max_move;
-    auto comp_performance = [](const Car& a, const Car& b) { // return true if a < b
+    auto comp_performance = [&path](const Car& a, const Car& b) { // return true if a < b
         if (a.getLap() < b.getLap())
             return true;
         else if (a.getLap() == b.getLap()
