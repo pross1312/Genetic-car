@@ -13,8 +13,8 @@ Eye::Eye(unsigned distancePerRay, unsigned nRays)
 }
 
 
-Eigen::VectorXf Eye::sense(const Path& path) const {
-    Eigen::VectorXf output{Eigen::VectorXf::Constant(_nRays, 9999999)};
+VectorXf Eye::sense(const Path& path) const {
+    VectorXf output{VectorXf(_nRays, 9999999)};
     for (unsigned i = 0; i < _nRays; i++) {
         std::optional<sf::Vector2f> temp = _rays[i].cast(path);
         if (temp.has_value()) {
@@ -26,8 +26,8 @@ Eigen::VectorXf Eye::sense(const Path& path) const {
 
 
 
-Eigen::VectorXf Eye::sense(const sf::Vector2f& A, const sf::Vector2f& B) const {
-    Eigen::VectorXf output{Eigen::VectorXf::Constant(_nRays, 10000)};
+VectorXf Eye::sense(const sf::Vector2f& A, const sf::Vector2f& B) const {
+    VectorXf output{VectorXf(_nRays, 10000)};
     for (unsigned i = 0; i < _nRays; i++) {
         std::optional<sf::Vector2f> temp = _rays[i].hit_line(A, B);
         if (temp.has_value()) {

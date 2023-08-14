@@ -71,9 +71,9 @@ void Car::translate(const sf::Vector2f& velocity) {
 }
 
 void Car::think(const Path& path) {
-    Eigen::VectorXf input = _eye.sense(path);
-    Eigen::VectorXf output = _brain.forward_propagate(input);
-    unsigned decision = std::max_element(output.begin(), output.end()) - output.begin();
+    VectorXf input = _eye.sense(path);
+    VectorXf output = _brain.forward_propagate(input);
+    unsigned decision = std::max_element(output.data, output.data + output.size()) - output.data;
     switch (decision) {
         case 0: rotate_movement = Rotate::Up;
                 break;

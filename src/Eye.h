@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Ray.h"
+#include "lin_al.h"
 #include <vector>
-#include <eigen3/Eigen/Core>
 
 
 class Eye {
@@ -20,8 +20,8 @@ public:
     }
 	~Eye() = default;
 
-	Eigen::VectorXf sense(const Path& path) const;
-	Eigen::VectorXf sense(const sf::Vector2f& A, const sf::Vector2f& B) const;
+	VectorXf sense(const Path& path) const;
+	VectorXf sense(const sf::Vector2f& A, const sf::Vector2f& B) const;
 	void rotate(float angle);
 	inline void setRotation(float angle) { rotate(-rotation); rotate(angle); rotation = angle; }
 	void setPosition(const sf::Vector2f& position) { *_position = position; }

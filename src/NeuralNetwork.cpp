@@ -1,7 +1,6 @@
 #include "NeuralNetwork.h"
 #include <algorithm>
 #include <iostream>
-using namespace Eigen;
 
 NeuralNetwork::NeuralNetwork(const NeuralNetwork& base) {
     assert(this->weights.size() == 0);
@@ -35,7 +34,7 @@ NeuralNetwork::NeuralNetwork(const NeuralNetwork& a, const NeuralNetwork& b) {
     }
 }
 
-NeuralNetwork::NeuralNetwork(std::vector<int> layerSizes,
+NeuralNetwork::NeuralNetwork(std::vector<size_t> layerSizes,
                              std::function<float(float)> activation)
         : topology{layerSizes}, activation{activation} {
     if (layerSizes.size() < 2)
@@ -44,16 +43,16 @@ NeuralNetwork::NeuralNetwork(std::vector<int> layerSizes,
         throw std::invalid_argument("Layer size can't be less than 1.");
 
     for (size_t i = 1; i < layerSizes.size(); i++) {
-        weights.push_back(MatrixXf::Random(layerSizes[i], layerSizes[i-1]));
-        weights[weights.size()-1] = 0.5 * (weights[weights.size()-1] + MatrixXf::Constant(layerSizes[i], layerSizes[i-1], 1));
-        biases.push_back(VectorXf::Random(layerSizes[i]));
+        weights.push_back(MatrixXf(layerSizes[i], layerSizes[i-1]));
+        weights[weights.size()-1] = (weights[weights.size()-1] + MatrixXf(layerSizes[i], layerSizes[i-1], 1) * 0.5f);
+        biases.push_back(VectorXf(layerSizes[i], randf));
     }
 }
 
 void NeuralNetwork::changeRandom() {
     for (size_t i = 0; i < weights.size(); i++) {
-        weights[i] += MatrixXf::Random(weights[i].rows(), weights[i].cols());
-        biases[i] += VectorXf::Random(biases[i].size());
+        weights[i] += MatrixXf(weights[i].nRows, weights[i].nCols, randf);
+        biases[i] += VectorXf(biases[i].size(), randf);
     }
 }
 
@@ -70,7 +69,7 @@ NeuralNetwork NeuralNetwork::reproduce(const NeuralNetwork& n) const {
 
 std::ofstream& operator<<(std::ofstream& fout, const NeuralNetwork& nn) {
     fout << nn.topology.size() << std::endl;
-    for (const int& i : nn.topology)
+    for (const auto& i : nn.topology)
         fout << i << " ";
     fout << std::endl;
     for (const auto& weight : nn.weights)
@@ -85,29 +84,29 @@ std::ifstream& operator>>(std::ifstream& fin, NeuralNetwork& nn) {
     fin >> n;
     if (n != nn.topology.size())
         throw std::runtime_error("Wrong topology size!");
-    std::vector<int> temp_topology(n);
-    for (int& i : temp_topology)
+    std::vector<size_t> temp_topology(n);
+    for (auto& i : temp_topology)
         fin >> i;
     if (temp_topology != nn.topology)
         throw std::runtime_error("Wrong topology!");
     for (auto& weight : nn.weights) {
-        for (int i = 0; i < weight.rows(); i++)
-            for (int j = 0; j < weight.cols(); j++)
-                fin >> weight.coeffRef(i, j);
+        for (size_t i = 0; i < weight.nRows; i++)
+            for (size_t j = 0; j < weight.nCols; j++)
+                fin >> weight[i][j];
     }
     for (auto& bias : nn.biases) {
-        for (int i = 0; i < bias.size(); i++)
-            fin >> bias.coeffRef(i);
+        for (size_t i = 0; i < bias.size(); i++)
+            fin >> bias[i];
     }
     return fin;
 }
-
 
 VectorXf NeuralNetwork::forward_propagate(VectorXf input) const {
     if (input.size() != topology[0])
         throw std::invalid_argument("Invalid input -- input must have same size as input layer in network.");
     for (size_t i = 0; i < weights.size(); i++) {
-        input = ((weights[i]) * input + (biases[i])).unaryExpr(activation);
+        const auto& temp = (weights[i] * input + biases[i]);
+        input.replace_with(temp.unary_transformed(activation));
     }
 
     return input;
