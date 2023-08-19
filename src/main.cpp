@@ -127,14 +127,11 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
         view.setCenter(human.getPosition());
         window.setView(view);
         window.clear();
+
         window.draw(path);
         if (start) {
             if (path.contains(human.getPosition())) {
                 human.move();
-                float dis = human.get_travel_distance(path);
-                sf::Text dis_text(std::to_string(1.0 / dis), font);
-                dis_text.setPosition(config.screen_w - 150, 0);
-                window.draw(dis_text);
                 human.update(path);
             }
             if (path.contains(agent.getPosition())) {
@@ -142,9 +139,6 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
                 agent.move();
                 agent.update(path);
                 agent.show_eye_line(window, path);
-            }
-            else {
-                printf("Agent out of path\n");
             }
         }
         window.draw(agent);
