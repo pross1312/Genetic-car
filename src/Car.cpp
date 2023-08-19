@@ -5,13 +5,13 @@ Car::Car(const char* imagePath)
     sf::Image image;
     if (!image.loadFromFile(imagePath))
         throw std::invalid_argument("Can't load car image.");
-    image.createMaskFromColor(maskColor);
+    image.createMaskFromColor(MASKCOLOR);
     if (!_texture.loadFromImage(image))
         throw std::runtime_error("Can't create texture from car image.");
     _sprite.setTexture(_texture);
     auto bound = _sprite.getLocalBounds();
     _sprite.setOrigin(bound.width / 2, bound.height / 2);
-    _sprite.setScale(scale);
+    _sprite.setScale(SCALE);
     reset();
 }
 
@@ -22,9 +22,10 @@ void Car::reset() {
     _localEyePosition.x = 0;
     _localEyePosition.y = 0;
     lap                 = 0;
-    lastCheckPoint      = 1;
+    last_check_point      = 1;
     forward.x           = 1;
     forward.y           = 0;
+    distance_on_path    = 0.0f;
     _eye.setPosition(_localEyePosition + _sprite.getPosition());
     _sprite.setRotation(0);
 }
@@ -34,7 +35,7 @@ Car::Car(const Car& p1, const Car& p2)
 
     auto bound = _sprite.getLocalBounds();
     _sprite.setOrigin(bound.width / 2, bound.height / 2);
-    _sprite.setScale(scale);
+    _sprite.setScale(SCALE);
     _sprite.setRotation(0);
     bound = _sprite.getGlobalBounds();
     _localEyePosition.x = 0;
@@ -42,7 +43,7 @@ Car::Car(const Car& p1, const Car& p2)
 
     _eye.setPosition(_localEyePosition + _sprite.getPosition());
     lap            = 0;
-    lastCheckPoint = 1;
+    last_check_point = 1;
     forward.x      = 1;
     forward.y      = 0;
 }
@@ -101,35 +102,27 @@ void Car::control(const sf::Event& event) {
     }
 }
 
-float Car::get_travel_distance(const Path& path) const {
-    float current_lap_distance = path.project_and_get_length(_sprite.getPosition());
-    return current_lap_distance + lap * path.full_length();
-}
-
 void Car::update(const Path& path) {
     auto[point, index] = path.spline.projected_point(_sprite.getPosition());
+    distance_on_path = Helper::distance(path.spline.vArray[index].position, _sprite.getPosition()) + path.cache_lengths[index];
     size_t n = path.spline.vArray.getVertexCount();
-    if (lastCheckPoint >= 1 && lastCheckPoint <= 3 && index <= n - 2 && index >= n - 4) {
+    if (last_check_point >= 1 && last_check_point <= 3 && index <= n - 2 && index >= n - 4) {
         lap--;
     }
-    else if (lastCheckPoint <= n - 2 && lastCheckPoint >= n - 4 && index >= 1 && index <= 3) {
+    else if (last_check_point <= n - 2 && last_check_point >= n - 4 && index >= 1 && index <= 3) {
         lap++;
     }
-    lastCheckPoint = index;
+    last_check_point = index;
 }
 
-void Car::show_line(sf::RenderTarget& target, const Path& path) const {
-    auto[point, index] = path.spline.projected_point(_sprite.getPosition());
-    Helper::draw_line(target, point, _sprite.getPosition(), sf::Color::Red);
-}
 
 void Car::move() {
     if (rotate_movement == Rotate::Up) {
-        rotate(rotateAngle);
+        rotate(ROTATEANGLE);
         accelerator = 0.0f;
     }
     else if (rotate_movement == Rotate::Down) {
-        rotate(-rotateAngle);
+        rotate(-ROTATEANGLE);
         accelerator = 0.0f;
     } else {
         accelerator += ACCELERATE;
@@ -151,20 +144,6 @@ void Car::load_brain(const char* fName) {
         throw std::runtime_error("Can't open file to read brain.");
     fin >> _brain;
     fin.close();
-}
-
-void Car::mutate() {
-    _brain.changeRandom();
-}
-
-
-void Car::draw(sf::RenderTarget& target, sf::RenderStates states) const {
-    (void)states;
-    target.draw(_sprite);
-}
-
-void Car::showEyeLine(sf::RenderTarget& target, const Path& path) {
-    _eye.draw(target, path);
 }
 
 void Car::rotate(float angle) {

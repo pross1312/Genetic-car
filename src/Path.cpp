@@ -71,17 +71,3 @@ void Path::update() {
     }
     update_cache_lengths();
 }
-
-
-void Path::draw(sf::RenderTarget& target, sf::RenderStates state) const {
-    target.draw(outer_shape, state);
-    target.draw(inner_shape, state);
-}
-
-
-float Path::project_and_get_length(const sf::Vector2f& position) const {
-    const sf::VertexArray& vArray = spline.vArray;
-    auto[point, index] = spline.projected_point(position);
-    return Helper::distance(vArray[index].position, point) +
-        cache_lengths[index];
-}

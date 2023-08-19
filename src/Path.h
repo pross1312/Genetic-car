@@ -9,14 +9,15 @@ class Path: public sf::Drawable {
 public:
     Path();
     ~Path() = default;
-	void draw(sf::RenderTarget& target, sf::RenderStates state) const override;
+	inline void draw(sf::RenderTarget& target, sf::RenderStates state) const override {
+        target.draw(outer_shape, state);
+        target.draw(inner_shape, state);
+    }
 	void save(const char* fName);
 	void load(const char* fName);
     void zoom(Vec2f center, float ratio);
     void update_cache_lengths();
 	void update();
-    float project_and_get_length(const sf::Vector2f& position) const; // project point onto spline and get distance from start
-
     inline pair<sf::Vector2f, float> get_start_param() const { // return position and rotation needed
         const auto a = spline.vArray[0].position;
         const auto b = spline.vArray[1].position;

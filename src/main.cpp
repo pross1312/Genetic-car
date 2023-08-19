@@ -1,43 +1,45 @@
 #include "Path.h"
 #include "Car.h"
-#include <list>
 
+#define FONT_PATH "resources/VictorMono.ttf"
+#define CONFIG_PATH "config"
 #define SCROLL_SENSITIVITY 20
 #define LINE_PADDING 10
 #define RIGHT_PADDING 5
 #define STUCK_TOLERANCE 5
 #define MAX_MOVE_INCREMENT 20
 #define STUCK_COLOR 0xff632eff
+#define SCREEN_MOVE_FACTOR (1/35.0f)
+#define MAX_DISTANCE_FROM_BEST_CAR 150
 
-Config config("config");
+Config config(CONFIG_PATH);
 
 // genetic optimization for automatic car...
 // -_- pretty dumb code.
 // using tournament selection
 // read configuration form config file.
 
-inline const sf::Color background = sf::Color::Black;
 inline size_t tournament_size = 0;
-inline bool training = false;
-inline bool show_eye_line = false;
-inline float mutation_rate = 0.0f;
+inline bool training          = false;
+inline bool show_eye_line     = false;
+inline float mutation_rate    = 0.0f;
 inline size_t init_population = 0;
-inline size_t stuck_count = 0;
-inline bool try_fix = false;
-inline const char* map_file = NULL;
+inline size_t stuck_count     = 0;
+inline bool try_fix           = false;
+inline const char* map_file   = NULL;
 inline const char* agent_file = NULL;
+inline Car* best_car          = nullptr;
 inline sf::Font font;
-inline Car* best_car_tracker = nullptr;
 void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path);
 void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path);
 
 void usage() {
     printf("--Usage--\n");
-    printf("./Car <SubCommand> [parameter]\n");
-    printf("      Train <seed> <mutation rate> <initial popoulation> <map file> <out file>\n");
-    printf("      Compete <agent file> <map file>\n");
-    printf("Example: ./Car Compete BestCar resources/Path.txt\n");
-    printf("         ./Car Train 123 0.5 20 resources/Path.txt BestCar\n");
+    printf("Car <SubCommand> [parameter]\n");
+    printf("     Train <seed> <mutation rate> <initial popoulation> <map file> <out file>\n");
+    printf("     Compete <agent file> <map file>\n");
+    printf("Example: Car Compete BestCar resources/sample_path\n");
+    printf("         Car Train 123 0.5 100 resources/sample_path BestCar\n");
 }
 
 int main(int argc, char** argv) {
@@ -70,11 +72,18 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
     sf::RenderWindow window(sf::VideoMode(config.screen_w, config.screen_h), "CarGenetic");
+    window.setFramerateLimit(60);
     sf::Event event;
     Path path;
     window.setFramerateLimit(24);
-    font.loadFromFile("resources/VictorMono.ttf");
-    path.load(map_file);
+    font.loadFromFile(FONT_PATH);
+    try {
+        path.load(map_file);
+    }
+    catch(const std::exception& e) {
+        printf("Can't read map file.\nERROR: %s\n", e.what());
+        exit(1);
+    }
     if (training) {
         handle_training_mode(window, event, path);
     }
@@ -113,8 +122,9 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
             }
             human.control(event);
         }
+
         auto view = window.getView();
-        view.setCenter(agent.getPosition());
+        view.setCenter(human.getPosition());
         window.setView(view);
         window.clear();
         window.draw(path);
@@ -131,7 +141,7 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
                 agent.think(path);
                 agent.move();
                 agent.update(path);
-                agent.showEyeLine(window, path);
+                agent.show_eye_line(window, path);
             }
             else {
                 printf("Agent out of path\n");
@@ -144,33 +154,24 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
 }
 
 void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path) {
-    std::vector<Car> poolCar{init_population};
-    std::vector<bool> onMovingCar;
+    std::vector<Car> pool_cars(init_population);
+    std::vector<bool> on_moving_cars;
     size_t current_alive = init_population;
-    float best_car_performance = 0.0f;
+    float best_performance = 0.0f;
     auto[start_position, start_rotation] = path.get_start_param();
-    for (size_t i = 0; i < init_population; i++) {
-        poolCar[i].setPosition(start_position);
-        poolCar[i].setRotation(start_rotation);
-        onMovingCar.push_back(true);
+    for (size_t i = 0; i < pool_cars.size(); i++) {
+        pool_cars[i].setPosition(start_position);
+        pool_cars[i].setRotation(start_rotation);
+        on_moving_cars.push_back(true);
     }
     try {
-        poolCar[0].load_brain(agent_file);
+        pool_cars[0].load_brain(agent_file);
     } catch (const std::exception& e) {
         printf("%s\n", e.what());
     }
 
     size_t max_move = 100;
     size_t movelefts = max_move;
-    auto comp_performance = [&path](const Car& a, const Car& b) { // return true if a < b
-        if (a.getLap() < b.getLap())
-            return true;
-        else if (a.getLap() == b.getLap()
-            && path.project_and_get_length(a.getPosition()) < path.project_and_get_length(b.getPosition()))
-            return true;
-        return false;
-    };
-
     while (window.isOpen()) {
         while (window.pollEvent(event)) {
             switch (event.type) {
@@ -213,32 +214,60 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
             try_fix = true;
         }
 
+        window.clear(config.back_ground);
+        window.draw(path);
+        best_car = &pool_cars[0];
+        for (size_t i = 0; i < pool_cars.size(); i++) {
+            if (!best_car || best_car->get_travel_distance(path) < pool_cars[i].get_travel_distance(path))
+                best_car = &pool_cars[i];
+            if (on_moving_cars[i]) {
+                if (path.contains(pool_cars[i].getPosition())) {
+                    pool_cars[i].think(path);
+                    pool_cars[i].move();
+                    pool_cars[i].update(path);
+                    if (show_eye_line) pool_cars[i].show_eye_line(window, path);
+                }
+                else {
+                    on_moving_cars[i] = false;
+                    current_alive--;
+                }
+            }
+            window.draw(pool_cars[i]);
+        }
+        movelefts--;
+
+        auto view = window.getView();
+        auto center_to_bestcar = Helper::distance(best_car->getPosition(), view.getCenter());
+        if (center_to_bestcar > MAX_DISTANCE_FROM_BEST_CAR) {
+            view.setCenter((best_car->getPosition() - view.getCenter()) * SCREEN_MOVE_FACTOR + view.getCenter());
+            window.setView(view);
+        }
+
         // end of a generation
         if (current_alive == 0 || movelefts <= 0) {
-            auto best_car = std::max_element(poolCar.begin(), poolCar.end(), comp_performance);
             best_car->save_brain(agent_file);
             float new_best_performance = best_car->get_travel_distance(path);
-            if (best_car_performance < new_best_performance) {
+            if (best_performance < new_best_performance) {
                 stuck_count = 0;
                 try_fix = false;
-            } else if (new_best_performance <= best_car_performance) {
+            } else if (new_best_performance <= best_performance) {
                 stuck_count++;
             }
-            best_car_performance = new_best_performance;
-            std::fill(onMovingCar.begin(), onMovingCar.end(), true);
+            best_performance = new_best_performance;
+            std::fill(on_moving_cars.begin(), on_moving_cars.end(), true);
             std::vector<Car> new_generation;
             new_generation.push_back(*best_car);
-            for (size_t i = 1; i < init_population; i++) {
-                Car* p1 = &poolCar[0];
-                Car* p2 = &poolCar[0];
+            for (size_t i = 1; i < pool_cars.size(); i++) {
+                Car* p1 = &pool_cars[rand() % pool_cars.size()];
+                Car* p2 = &pool_cars[rand() % pool_cars.size()];
                 for (size_t tournament = 0; tournament < tournament_size; tournament++) {
-                    int rand_idx1 = rand() % init_population;
-                    if (comp_performance(*p1, poolCar[rand_idx1])) {
-                        p1 = &poolCar[rand_idx1];
+                    int rand_idx1 = rand() % pool_cars.size();
+                    if (p1->get_travel_distance(path), pool_cars[rand_idx1].get_travel_distance(path)) {
+                        p1 = &pool_cars[rand_idx1];
                     }
-                    int rand_idx2 = rand() % init_population;
-                    if (comp_performance(*p2, poolCar[rand_idx2])) {
-                        p2 = &poolCar[rand_idx2];
+                    int rand_idx2 = rand() % pool_cars.size();
+                    if (p2->get_travel_distance(path), pool_cars[rand_idx2].get_travel_distance(path)) {
+                        p2 = &pool_cars[rand_idx2];
                     }
                 }
                 Car temp{ *p1, *p2 };
@@ -249,46 +278,26 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
                     if (stuck_count > STUCK_TOLERANCE) new_generation[i].mutate();
                 }
             }
-            poolCar.clear();
-            poolCar = new_generation;
-            for (auto& c : poolCar) {
+            pool_cars.clear();
+            pool_cars = new_generation;
+            for (auto& c : pool_cars) {
                 c.reset();
                 c.setPosition(start_position);
-                c.setRotation(start_rotation + (rand()%10) * (rand()%10 >= 5 ? -1 : 1));
+                c.setRotation(start_rotation + (rand()%20) * (rand()%100 >= 50 ? -1 : 1));
             }
             current_alive = init_population;
             movelefts = max_move;
-            best_car_tracker = &poolCar[0];
         }
-
-        window.clear(config.back_ground);
-        window.draw(path);
-        for (size_t i = 0; i < init_population; i++) {
-            if (onMovingCar[i]) {
-                if (path.contains(poolCar[i].getPosition())) {
-                    poolCar[i].think(path);
-                    poolCar[i].move();
-                    poolCar[i].update(path);
-                    if (show_eye_line) poolCar[i].showEyeLine(window, path);
-                }
-                else {
-                    onMovingCar[i] = false;
-                    current_alive--;
-                }
-            }
-            window.draw(poolCar[i]);
-        }
-        movelefts--;
 
         char buffer[124] {};
         sprintf(buffer, "\
 Max move: %zu\n\
-Performance: %f\n\
-Alive: %zu\n", max_move, best_car_performance, current_alive);
+Performance: %.5f\n\
+Alive: %zu", max_move, best_car->get_travel_distance(path), current_alive);
         sf::Text info(buffer, font);
         Vec2f info_position = Helper::to_world(window, config.screen_w - info.getGlobalBounds().width - RIGHT_PADDING, 0);
         info.setPosition(info_position);
-        if (stuck_count > STUCK_TOLERANCE) info.setFillColor(sf::Color(STUCK_COLOR));
+
         window.draw(info);
         window.display();
     }
