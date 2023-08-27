@@ -44,10 +44,9 @@ void Car::reset() {
     rotate_movement    = Rotate::None;
     lap                = 0;
     last_check_point   = 1;
-    forward.x          = 1;
-    forward.y          = 0;
     distance_on_path   = 0.0f;
     eye.setPosition(sprite.getPosition());
+    eye.setRotation(0);
 }
 
 Car& Car::operator=(const Car& b) {
@@ -99,6 +98,7 @@ void Car::control(const sf::Event& event) {
 }
 
 void Car::update(const Path& path) {
+    assert(*eye._position == sprite.getPosition());
     auto[point, index] = path.spline.projected_point(sprite.getPosition());
     distance_on_path = Helper::distance(path.spline.vArray[index].position, sprite.getPosition()) + path.spline.cache_lengths[index];
     size_t n = path.spline.vArray.getVertexCount();

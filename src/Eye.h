@@ -5,8 +5,7 @@
 #include <vector>
 
 
-class Eye {
-public:
+struct Eye {
 	Eye(unsigned distancePerRay, unsigned nRays);
 	Eye(const Eye& base) : Eye(base._distancePerRay, base._nRays) {}
 
@@ -23,16 +22,15 @@ public:
 	VectorXf sense(const Path& path) const;
 	VectorXf sense(const sf::Vector2f& A, const sf::Vector2f& B) const;
 	void rotate(float angle);
-	inline void setRotation(float angle) { rotate(-rotation); rotate(angle); rotation = angle; }
+	inline void setRotation(float angle) { rotate(-rotation + angle); rotation = angle; }
 	void setPosition(const sf::Vector2f& position) { *_position = position; }
 	void draw(sf::RenderTarget& target, const Path& path) const;
 	void draw(sf::RenderTarget& target, const sf::Vector2f& A, const sf::Vector2f& B) const;
 
-private:
 	unsigned _distancePerRay = 20; // in degree
 	unsigned _nRays = 7;
     float rotation = 0.0f;
 
-	std::vector<Ray> _rays;
 	std::shared_ptr<sf::Vector2f> _position;
+	std::vector<Ray> _rays;
 };

@@ -35,7 +35,7 @@ public:
 	inline float get_travel_distance(const Path& path) const              { return  distance_on_path + lap * path.spline.full_length(); }
     inline void mutate()                                                  { brain.changeRandom(); }
 	inline void move_forward()                                            { translate(Helper::mul(forward, VELOCITY + accelerator)); }
-	inline void setPosition(const sf::Vector2f& position)                 { sprite.setPosition(position); }
+	inline void setPosition(const sf::Vector2f& position)                 { sprite.setPosition(position); eye.setPosition(position); }
 	inline void setPosition(float x, float y)                             { setPosition(sf::Vector2f{ x, y }); }
 	inline sf::Vector2f getPosition() const                               { return sprite.getPosition(); }
     Rotate rotate_movement;

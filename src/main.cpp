@@ -10,7 +10,7 @@ using namespace std::chrono;
 #define LINE_PADDING 10
 #define RIGHT_PADDING 5
 #define STUCK_TOLERANCE 7
-#define MAX_MOVE_INCREMENT 50
+#define MAX_MOVE_INCREMENT 100
 #define STUCK_COLOR 0xff632eff
 #define SCREEN_MOVE_FACTOR .7f
 #define MAX_DISTANCE_FROM_BEST_CAR 150
@@ -134,12 +134,12 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
             if (path.contains(human.getPosition())) {
                 human.move();
                 human.update(path);
+                human.showeye_line(window, path);
             }
             if (path.contains(agent.getPosition())) {
                 agent.think(path);
                 agent.move();
                 agent.update(path);
-                agent.showeye_line(window, path);
             }
         }
         window.draw(agent);
@@ -205,10 +205,6 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
             }
         }
 
-        if (stuck_count > STUCK_TOLERANCE && !try_fix) {
-            max_move += MAX_MOVE_INCREMENT;
-            try_fix = true;
-        }
 
         // end of a generation
         if (current_alive == 0 || movelefts <= 0) {
@@ -217,10 +213,12 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
             if (best_performance < new_best_performance) {
                 stuck_count = 0;
                 try_fix = false;
-            } else if (new_best_performance <= best_performance) {
-                stuck_count++;
-            }
+            } else if (new_best_performance <= best_performance) stuck_count++;
             best_performance = new_best_performance;
+            if (stuck_count > STUCK_TOLERANCE && !try_fix) {
+                max_move += MAX_MOVE_INCREMENT;
+                try_fix = true;
+            }
             std::fill(on_moving_cars.begin(), on_moving_cars.end(), true);
             std::vector<Car> new_generation;
             new_generation.push_back(*best_car);
@@ -295,7 +293,8 @@ Max move: %zu\n\
 Performance: %.2f\n\
 Alive: %zu\n\
 Best: %.2f\n\
-Fps: %.2f", max_move, best_car->get_travel_distance(path), current_alive, best_performance, 1.0f/interval.count());
+Stuck: %zu\n\
+Fps: %.2f", max_move, best_car->get_travel_distance(path), current_alive, best_performance, stuck_count, 1.0f/interval.count());
 
         sf::Text info(buffer, font);
         Vec2f info_position = window.mapPixelToCoords(sf::Vector2i(config.screen_w - info.getGlobalBounds().width - RIGHT_PADDING, 0));

@@ -2,13 +2,13 @@
 
 
 Eye::Eye(unsigned distancePerRay, unsigned nRays)
-    : _distancePerRay{ distancePerRay }, _nRays{ nRays }, _rays{ nRays }, _position{std::make_shared<sf::Vector2f>()} {
+    : _distancePerRay{ distancePerRay }, _nRays{ nRays }, _position{std::make_shared<sf::Vector2f>()}, _rays{} {
     float degree = -(_distancePerRay * (_nRays - 1) / 2.0f);
-    for (Ray& r : _rays) {
-        r.setPosition(_position);
+    for (size_t i = 0; i < nRays; i++) {
         sf::Vector2f temp{std::cos(degree * (float)M_PI / 180.0f), std::sin(degree * (float)M_PI / 180.0f)};
-        r.setDirection(temp);
+        Ray r(_position, temp);
         degree += _distancePerRay;
+        _rays.push_back(r);
     }
 }
 

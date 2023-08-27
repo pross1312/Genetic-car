@@ -22,8 +22,7 @@ inline float relu_activate(float x) {
 	return std::max(x, 0.0f);
 }
 
-class NeuralNetwork {
-public:
+struct NeuralNetwork {
 	~NeuralNetwork() = default;
 	NeuralNetwork(const NeuralNetwork& base);
 	NeuralNetwork(std::vector<size_t> layerSizes, std::function<float(float)> activation);
@@ -34,7 +33,7 @@ public:
 	friend std::ofstream& operator<<(std::ofstream& fout, const NeuralNetwork& nn);
 	void changeRandom();
     NeuralNetwork reproduce(const NeuralNetwork& n) const;
-private:
+
 	std::vector<size_t> topology;
 	std::vector<MatrixXf> weights;
 	std::vector<VectorXf> biases;
