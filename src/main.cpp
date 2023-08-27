@@ -12,8 +12,8 @@ using namespace std::chrono;
 #define STUCK_TOLERANCE 7
 #define MAX_MOVE_INCREMENT 50
 #define STUCK_COLOR 0xff632eff
-#define SCREEN_MOVE_FACTOR (1/35.0f)
-#define MAX_DISTANCE_FROM_BEST_CAR 200
+#define SCREEN_MOVE_FACTOR (.7f)
+#define MAX_DISTANCE_FROM_BEST_CAR 150
 
 Config config(CONFIG_PATH);
 
@@ -22,6 +22,7 @@ Config config(CONFIG_PATH);
 // using tournament selection
 // read configuration form config file.
 
+const size_t fps = 80;
 inline size_t tournament_size = 0;
 inline bool training          = false;
 inline bool showeye_line      = false;
@@ -79,7 +80,7 @@ int main(int argc, char** argv) {
     window.setFramerateLimit(60);
     sf::Event event;
     Path path(config.path_width, 0x485965ff);
-    window.setFramerateLimit(24);
+    window.setFramerateLimit(fps);
     font.loadFromFile(FONT_PATH);
     try {
         path.load(map_file);
@@ -103,6 +104,7 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
     human.rotate(start_rotation);
     bool start = false;
     while (window.isOpen()) {
+        auto start_time = high_resolution_clock::now();
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
                 window.close();
@@ -142,6 +144,13 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
         }
         window.draw(agent);
         window.draw(human);
+        auto interval = std::chrono::duration<float, std::chrono::seconds::period>(high_resolution_clock::now() - start_time);
+        char buffer[32] {};
+        sprintf(buffer, "Fps: %.2f", 1.0f/interval.count());
+        sf::Text info(buffer, font);
+        Vec2f info_position = window.mapPixelToCoords(sf::Vector2i(config.screen_w - info.getGlobalBounds().width - RIGHT_PADDING, 0));
+        info.setPosition(info_position);
+        window.draw(info);
         window.display();
     }
 }
@@ -203,15 +212,15 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
 
         window.clear(config.back_ground);
         window.draw(path);
-        best_car = &pool_cars[0];
+        best_car = nullptr;
         for (size_t i = 0; i < pool_cars.size(); i++) {
-            if (!best_car || best_car->get_travel_distance(path) < pool_cars[i].get_travel_distance(path)) best_car = &pool_cars[i];
             if (on_moving_cars[i]) {
                 if (path.contains(pool_cars[i].getPosition())) {
                     pool_cars[i].think(path);
                     pool_cars[i].move();
                     pool_cars[i].update(path);
                     if (showeye_line) pool_cars[i].showeye_line(window, path);
+                    if (!best_car || best_car->get_travel_distance(path) < pool_cars[i].get_travel_distance(path)) best_car = &pool_cars[i];
                 }
                 else {
                     on_moving_cars[i] = false;
@@ -220,14 +229,16 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
             }
             window.draw(pool_cars[i]);
         }
+        if (!best_car) best_car = &*std::max_element(pool_cars.begin() ,pool_cars.end(), [&](const auto& a, const auto& b) {return a.get_travel_distance(path) < b.get_travel_distance(path); });
         movelefts--;
 
         auto view = window.getView();
         auto center_to_bestcar = Helper::distance(best_car->getPosition(), view.getCenter());
         if (center_to_bestcar > MAX_DISTANCE_FROM_BEST_CAR) {
-            view.setCenter((best_car->getPosition() - view.getCenter()) * SCREEN_MOVE_FACTOR + view.getCenter());
+            view.move((best_car->getPosition() - view.getCenter()) * SCREEN_MOVE_FACTOR / (float)fps);
             window.setView(view);
         }
+        best_car->show_line(window, path);
 
         // end of a generation
         if (current_alive == 0 || movelefts <= 0) {
@@ -248,11 +259,11 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
                 Car* p2 = &pool_cars[rand() % pool_cars.size()];
                 for (size_t tournament = 0; tournament < tournament_size; tournament++) {
                     int rand_idx1 = rand() % pool_cars.size();
-                    if (p1->get_travel_distance(path), pool_cars[rand_idx1].get_travel_distance(path)) {
+                    if (p1->get_travel_distance(path) < pool_cars[rand_idx1].get_travel_distance(path)) {
                         p1 = &pool_cars[rand_idx1];
                     }
                     int rand_idx2 = rand() % pool_cars.size();
-                    if (p2->get_travel_distance(path), pool_cars[rand_idx2].get_travel_distance(path)) {
+                    if (p2->get_travel_distance(path) < pool_cars[rand_idx2].get_travel_distance(path)) {
                         p2 = &pool_cars[rand_idx2];
                     }
                 }
@@ -282,10 +293,10 @@ Max move: %zu\n\
 Performance: %.2f\n\
 Alive: %zu\n\
 Best: %.2f\n\
-fps: %.2f", max_move, best_car->get_travel_distance(path), current_alive, best_performance, 1.0f/interval.count());
+Fps: %.2f", max_move, best_car->get_travel_distance(path), current_alive, best_performance, 1.0f/interval.count());
 
         sf::Text info(buffer, font);
-        Vec2f info_position = Helper::to_world(window, config.screen_w - info.getGlobalBounds().width - RIGHT_PADDING, 0);
+        Vec2f info_position = window.mapPixelToCoords(sf::Vector2i(config.screen_w - info.getGlobalBounds().width - RIGHT_PADDING, 0));
         info.setPosition(info_position);
 
         window.draw(info);

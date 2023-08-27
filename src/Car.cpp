@@ -15,6 +15,7 @@ inline bool load_car_textures() {
     }
     return true;
 }
+
 Car::Car()
     : brain{ {15, 3}, relu_activate }, eye{ 12, 15} {
     if (Car::textures[0] == nullptr) load_car_textures(); // if texture is not loaded, load it
