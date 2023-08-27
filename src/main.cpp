@@ -1,16 +1,19 @@
 #include "Path.h"
+#include "Config.h"
 #include "Car.h"
+#include <chrono>
+using namespace std::chrono;
 
 #define FONT_PATH "resources/VictorMono.ttf"
 #define CONFIG_PATH "config"
 #define SCROLL_SENSITIVITY 20
 #define LINE_PADDING 10
 #define RIGHT_PADDING 5
-#define STUCK_TOLERANCE 5
-#define MAX_MOVE_INCREMENT 20
+#define STUCK_TOLERANCE 7
+#define MAX_MOVE_INCREMENT 50
 #define STUCK_COLOR 0xff632eff
 #define SCREEN_MOVE_FACTOR (1/35.0f)
-#define MAX_DISTANCE_FROM_BEST_CAR 150
+#define MAX_DISTANCE_FROM_BEST_CAR 200
 
 Config config(CONFIG_PATH);
 
@@ -21,7 +24,7 @@ Config config(CONFIG_PATH);
 
 inline size_t tournament_size = 0;
 inline bool training          = false;
-inline bool show_eye_line     = false;
+inline bool showeye_line      = false;
 inline float mutation_rate    = 0.0f;
 inline size_t init_population = 0;
 inline size_t stuck_count     = 0;
@@ -29,6 +32,7 @@ inline bool try_fix           = false;
 inline const char* map_file   = NULL;
 inline const char* agent_file = NULL;
 inline Car* best_car          = nullptr;
+inline size_t max_move        = 200;
 inline sf::Font font;
 void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path);
 void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path);
@@ -74,7 +78,7 @@ int main(int argc, char** argv) {
     sf::RenderWindow window(sf::VideoMode(config.screen_w, config.screen_h), "CarGenetic");
     window.setFramerateLimit(60);
     sf::Event event;
-    Path path;
+    Path path(config.path_width, 0x485965ff);
     window.setFramerateLimit(24);
     font.loadFromFile(FONT_PATH);
     try {
@@ -84,24 +88,19 @@ int main(int argc, char** argv) {
         printf("Can't read map file.\nERROR: %s\n", e.what());
         exit(1);
     }
-    if (training) {
-        handle_training_mode(window, event, path);
-    }
-    else {
-        handle_compete_mode(window, event, path);
-    }
+    if (training) handle_training_mode(window, event, path);
+    else          handle_compete_mode(window, event, path);
     return 0;
 }
 
 void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path) {
-    Car agent {"resources/Car_agent.jpeg"};
-    Car human {"resources/Car_human.jpeg"};
-    agent.load_brain(agent_file);
+    Car agent, human;
+    agent.loadbrain(agent_file);
     auto[start_position, start_rotation] = path.get_start_param();
     agent.setPosition(start_position);
-    agent.setRotation(start_rotation);
+    agent.rotate(start_rotation);
     human.setPosition(start_position);
-    human.setRotation(start_rotation);
+    human.rotate(start_rotation);
     bool start = false;
     while (window.isOpen()) {
         while (window.pollEvent(event)) {
@@ -112,9 +111,9 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
                     human.reset();
                     agent.reset();
                     agent.setPosition(start_position);
-                    agent.setRotation(start_rotation);
+                    agent.rotate(start_rotation);
                     human.setPosition(start_position);
-                    human.setRotation(start_rotation);
+                    human.rotate(start_rotation);
                     start = false;
                 } else {
                     start = true;
@@ -138,7 +137,7 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
                 agent.think(path);
                 agent.move();
                 agent.update(path);
-                agent.show_eye_line(window, path);
+                agent.showeye_line(window, path);
             }
         }
         window.draw(agent);
@@ -155,36 +154,30 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
     auto[start_position, start_rotation] = path.get_start_param();
     for (size_t i = 0; i < pool_cars.size(); i++) {
         pool_cars[i].setPosition(start_position);
-        pool_cars[i].setRotation(start_rotation);
+        pool_cars[i].rotate(start_rotation);
         on_moving_cars.push_back(true);
     }
     try {
-        pool_cars[0].load_brain(agent_file);
+        pool_cars[0].loadbrain(agent_file);
     } catch (const std::exception& e) {
         printf("%s\n", e.what());
     }
 
-    size_t max_move = 100;
     size_t movelefts = max_move;
     while (window.isOpen()) {
+        auto start_time = high_resolution_clock::now();
         while (window.pollEvent(event)) {
             switch (event.type) {
             case sf::Event::Closed:
                 window.close();
                 break;
             case sf::Event::KeyPressed: {
-                if (event.key.code == sf::Keyboard::Up) {
+                if (event.key.code == sf::Keyboard::Up)
                     max_move += MAX_MOVE_INCREMENT;
-                }
-                else if (event.key.code == sf::Keyboard::Down && max_move > 30) {
+                else if (event.key.code == sf::Keyboard::Down && max_move > 30)
                     max_move -= MAX_MOVE_INCREMENT;
-                }
-                else if (event.key.code == sf::Keyboard::S) {
-                    show_eye_line = !show_eye_line;
-                }
-                else if (event.key.code == sf::Keyboard::S) {
-                    printf("Stuck: %zu\n", stuck_count);
-                }
+                else if (event.key.code == sf::Keyboard::S)
+                    showeye_line = !showeye_line;
             } break;
             case sf::Event::MouseWheelScrolled: {
                 auto view = window.getView();
@@ -212,14 +205,13 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
         window.draw(path);
         best_car = &pool_cars[0];
         for (size_t i = 0; i < pool_cars.size(); i++) {
-            if (!best_car || best_car->get_travel_distance(path) < pool_cars[i].get_travel_distance(path))
-                best_car = &pool_cars[i];
+            if (!best_car || best_car->get_travel_distance(path) < pool_cars[i].get_travel_distance(path)) best_car = &pool_cars[i];
             if (on_moving_cars[i]) {
                 if (path.contains(pool_cars[i].getPosition())) {
                     pool_cars[i].think(path);
                     pool_cars[i].move();
                     pool_cars[i].update(path);
-                    if (show_eye_line) pool_cars[i].show_eye_line(window, path);
+                    if (showeye_line) pool_cars[i].showeye_line(window, path);
                 }
                 else {
                     on_moving_cars[i] = false;
@@ -239,7 +231,7 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
 
         // end of a generation
         if (current_alive == 0 || movelefts <= 0) {
-            best_car->save_brain(agent_file);
+            best_car->savebrain(agent_file);
             float new_best_performance = best_car->get_travel_distance(path);
             if (best_performance < new_best_performance) {
                 stuck_count = 0;
@@ -277,17 +269,21 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
             for (auto& c : pool_cars) {
                 c.reset();
                 c.setPosition(start_position);
-                c.setRotation(start_rotation + (rand()%20) * (rand()%100 >= 50 ? -1 : 1));
+                c.rotate(start_rotation); //+ (rand()%20) * (rand()%100 >= 50 ? -1 : 1));
             }
             current_alive = init_population;
             movelefts = max_move;
         }
 
-        char buffer[124] {};
+        auto interval = std::chrono::duration<float, std::chrono::seconds::period>(high_resolution_clock::now() - start_time);
+        char buffer[128] {};
         sprintf(buffer, "\
 Max move: %zu\n\
-Performance: %.5f\n\
-Alive: %zu", max_move, best_car->get_travel_distance(path), current_alive);
+Performance: %.2f\n\
+Alive: %zu\n\
+Best: %.2f\n\
+fps: %.2f", max_move, best_car->get_travel_distance(path), current_alive, best_performance, 1.0f/interval.count());
+
         sf::Text info(buffer, font);
         Vec2f info_position = Helper::to_world(window, config.screen_w - info.getGlobalBounds().width - RIGHT_PADDING, 0);
         info.setPosition(info_position);

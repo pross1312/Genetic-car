@@ -1,79 +1,76 @@
 #include "Car.h"
 #include <exception>
-Car::Car(const char* imagePath)
-    : _brain{ {15, 3}, relu_activate }, _eye{ 12, 15} {
-    sf::Image image;
-    if (!image.loadFromFile(imagePath))
-        throw std::invalid_argument("Can't load car image.");
-    image.createMaskFromColor(MASKCOLOR);
-    if (!_texture.loadFromImage(image))
-        throw std::runtime_error("Can't create texture from car image.");
-    _sprite.setTexture(_texture);
-    auto bound = _sprite.getLocalBounds();
-    _sprite.setOrigin(bound.width / 2, bound.height / 2);
-    _sprite.setScale(SCALE);
+#define CAR_TEXTURES_PATH "resources/cars_racer.png"
+#define CAR_WIDTH 225
+#define CAR_HEIGHT 442
+#define CAR_GAP 163
+#define CAR_SCALE_TO_SCREEN {0.1f, 0.1f}
+#define CAR_ROTATION_TO_POINT_RIGHT 90
+
+inline bool load_car_textures() {
+    for (size_t i = 0; i < Car::CAR_TYPE_COUNT; i++) {
+        Car::textures[i] = new sf::Texture;
+        if (!Car::textures[i]->loadFromFile(CAR_TEXTURES_PATH, sf::Rect<int>((CAR_WIDTH+CAR_GAP)*int(i), 0, CAR_WIDTH, CAR_HEIGHT)))
+            return false;
+    }
+    return true;
+}
+Car::Car()
+    : brain{ {15, 3}, relu_activate }, eye{ 12, 15} {
+    if (Car::textures[0] == nullptr) load_car_textures(); // if texture is not loaded, load it
+    sprite.setTexture(*Car::textures[rand()%Car::CAR_TYPE_COUNT]);
     reset();
 }
 
-void Car::reset() {
-    accelerator         = 0;
-    forward             = { 1, 0 };
-    rotate_movement     = Rotate::None;
-    _localEyePosition.x = 0;
-    _localEyePosition.y = 0;
-    lap                 = 0;
-    last_check_point      = 1;
-    forward.x           = 1;
-    forward.y           = 0;
-    distance_on_path    = 0.0f;
-    _eye.setPosition(_localEyePosition + _sprite.getPosition());
-    _sprite.setRotation(0);
-}
-
 Car::Car(const Car& p1, const Car& p2)
-    : _brain{p1._brain, p2._brain}, _eye{p1._eye}, _texture{p1._texture}, _sprite{p1._sprite} {
-
-    auto bound = _sprite.getLocalBounds();
-    _sprite.setOrigin(bound.width / 2, bound.height / 2);
-    _sprite.setScale(SCALE);
-    _sprite.setRotation(0);
-    bound = _sprite.getGlobalBounds();
-    _localEyePosition.x = 0;
-    _localEyePosition.y = 0;
-
-    _eye.setPosition(_localEyePosition + _sprite.getPosition());
-    lap            = 0;
-    last_check_point = 1;
-    forward.x      = 1;
-    forward.y      = 0;
+    : brain{p1.brain, p2.brain}, eye{p1.eye}, sprite{p1.sprite} {
+    sprite.setTexture(*Car::textures[rand()%CAR_TYPE_COUNT]);
+    reset();
 }
 
 Car::Car(const Car& base)
-    : _brain{base._brain}, _eye{base._eye}, _texture{base._texture}, _sprite{base._sprite} {
+    : brain{base.brain}, eye{base.eye}, sprite{base.sprite} {
+}
+
+
+void Car::reset() {
+    sprite.setScale(CAR_SCALE_TO_SCREEN);
+    auto bound = sprite.getLocalBounds();
+    sprite.setOrigin(bound.width / 2, bound.height / 2);
+    sprite.setRotation(CAR_ROTATION_TO_POINT_RIGHT);
+    accelerator        = 0;
+    forward            = { 1, 0 };
+    rotate_movement    = Rotate::None;
+    localEyePosition.x = 0;
+    localEyePosition.y = 0;
+    lap                = 0;
+    last_check_point   = 1;
+    forward.x          = 1;
+    forward.y          = 0;
+    distance_on_path   = 0.0f;
+    eye.setPosition(localEyePosition + sprite.getPosition());
 }
 
 Car& Car::operator=(const Car& b) {
     assert(false && "Not working properly");
-    _brain     = b._brain;
-    _eye       = b._eye;
-    _texture   = b._texture;
-    _sprite    = b._sprite;
-    auto bound = _sprite.getLocalBounds();
-    _sprite.setOrigin(bound.width / 2, bound.height / 2);
+    brain      = b.brain;
+    eye        = b.eye;
+    sprite     = b.sprite;
+    auto bound = sprite.getLocalBounds();
+    sprite.setOrigin(bound.width / 2, bound.height / 2);
     reset();
     return *this;
 }
 
-Car::Car(): Car("./resources/Car_agent.jpeg") {}
 
 void Car::translate(const sf::Vector2f& velocity) {
-    _sprite.move(velocity);
-    _eye.setPosition(_sprite.getPosition() + _localEyePosition);
+    sprite.move(velocity);
+    eye.setPosition(sprite.getPosition() + localEyePosition);
 }
 
 void Car::think(const Path& path) {
-    VectorXf input = _eye.sense(path);
-    VectorXf output = _brain.forward_propagate(input);
+    VectorXf input = eye.sense(path);
+    VectorXf output = brain.forward_propagate(input);
     unsigned decision = std::max_element(output.data, output.data + output.size()) - output.data;
     switch (decision) {
         case 0: rotate_movement = Rotate::Up;
@@ -103,8 +100,8 @@ void Car::control(const sf::Event& event) {
 }
 
 void Car::update(const Path& path) {
-    auto[point, index] = path.spline.projected_point(_sprite.getPosition());
-    distance_on_path = Helper::distance(path.spline.vArray[index].position, _sprite.getPosition()) + path.cache_lengths[index];
+    auto[point, index] = path.spline.projected_point(sprite.getPosition());
+    distance_on_path = Helper::distance(path.spline.vArray[index].position, sprite.getPosition()) + path.spline.cache_lengths[index];
     size_t n = path.spline.vArray.getVertexCount();
     if (last_check_point >= 1 && last_check_point <= 3 && index <= n - 2 && index >= n - 4) {
         lap--;
@@ -130,36 +127,26 @@ void Car::move() {
     move_forward();
 }
 
-void Car::save_brain(const char* fName) const {
+void Car::savebrain(const char* fName) const {
     std::ofstream fout{fName};
     if (!fout.is_open())
         throw std::runtime_error("Can't open file to save brain.");
-    fout << _brain;
+    fout << brain;
     fout.close();
 }
 
-void Car::load_brain(const char* fName) {
+void Car::loadbrain(const char* fName) {
     std::ifstream fin{fName};
     if (!fin.is_open())
         throw std::runtime_error("Can't open file to read brain.");
-    fin >> _brain;
+    fin >> brain;
     fin.close();
 }
 
 void Car::rotate(float angle) {
-    _sprite.rotate(-angle);
-    _localEyePosition = Helper::rotated(_localEyePosition, angle);
-    _eye.setPosition(_localEyePosition + _sprite.getPosition());
+    sprite.rotate(-angle);
+    localEyePosition = Helper::rotated(localEyePosition, angle);
+    eye.setPosition(localEyePosition + sprite.getPosition());
     forward = Helper::rotated(forward, angle);
-    _eye.rotate(angle);
-}
-void Car::setRotation(float angle) {
-    float temp = - _sprite.getRotation();
-    _sprite.setRotation(-angle);
-    _localEyePosition = Helper::rotated(_localEyePosition, temp);
-    _localEyePosition = Helper::rotated(_localEyePosition, angle);
-    _eye.setPosition(_localEyePosition + _sprite.getPosition());
-    forward = Helper::rotated(forward, temp);
-    forward = Helper::rotated(forward, angle);
-    _eye.setRotation(angle);
+    eye.rotate(angle);
 }

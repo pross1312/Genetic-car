@@ -22,16 +22,13 @@ std::optional<Vec2f> Ray::hit_line(Vec2f A, Vec2f B) const {
 }
 
 std::optional<Vec2f> Ray::cast(const Path& path) const {
-    const sf::ConvexShape& outer = path.outer_shape;
-    const sf::ConvexShape& inner = path.inner_shape;
-    unsigned nVertex = outer.getPointCount();
+    const auto& vArray = path.vArray;
+    unsigned nVertex = vArray.getVertexCount()/2;
     float minDistance = 1e9;
     std::optional<Vec2f> hitPoint;
-    std::optional<Vec2f> p1 = hit_line(outer.getPoint(0), outer.getPoint(nVertex-1));
-    std::optional<Vec2f> p2 = hit_line(inner.getPoint(0), inner.getPoint(nVertex-1));
-    for (size_t i = 0; i < nVertex; i++) {
-        p1 = hit_line(outer.getPoint(i), outer.getPoint((i+1) % nVertex));
-        p2 = hit_line(inner.getPoint(i), inner.getPoint((i+1) % nVertex));
+    for (size_t i = 1; i < nVertex; i++) {
+        auto p1 = hit_line(vArray[2*(i-1)].position, vArray[2*i].position);
+        auto p2 = hit_line(vArray[2*(i-1)+1].position, vArray[2*i+1].position);
         if (p1.has_value()) {
             double tempDistance = Helper::distance(p1.value(), *_position);
             if (tempDistance < minDistance) {
