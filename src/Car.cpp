@@ -41,14 +41,12 @@ void Car::reset() {
     accelerator        = 0;
     forward            = { 1, 0 };
     rotate_movement    = Rotate::None;
-    localEyePosition.x = 0;
-    localEyePosition.y = 0;
     lap                = 0;
     last_check_point   = 1;
     forward.x          = 1;
     forward.y          = 0;
     distance_on_path   = 0.0f;
-    eye.setPosition(localEyePosition + sprite.getPosition());
+    eye.setPosition(sprite.getPosition());
 }
 
 Car& Car::operator=(const Car& b) {
@@ -65,7 +63,7 @@ Car& Car::operator=(const Car& b) {
 
 void Car::translate(const sf::Vector2f& velocity) {
     sprite.move(velocity);
-    eye.setPosition(sprite.getPosition() + localEyePosition);
+    eye.setPosition(sprite.getPosition());
 }
 
 void Car::think(const Path& path) {
@@ -145,8 +143,7 @@ void Car::loadbrain(const char* fName) {
 
 void Car::rotate(float angle) {
     sprite.rotate(-angle);
-    localEyePosition = Helper::rotated(localEyePosition, angle);
-    eye.setPosition(localEyePosition + sprite.getPosition());
+    eye.setPosition(sprite.getPosition());
     forward = Helper::rotated(forward, angle);
     eye.rotate(angle);
 }

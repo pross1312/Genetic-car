@@ -2,7 +2,7 @@
 #include "NeuralNetwork.h"
 #include "Eye.h"
 #include <SFML/Graphics.hpp>
-
+const extern size_t fps;
 enum Rotate {
 	None,
 	Up,
@@ -40,9 +40,9 @@ public:
 	inline sf::Vector2f getPosition() const                               { return sprite.getPosition(); }
     Rotate rotate_movement;
 
-	inline static const float VELOCITY    = 8.0f;
-	inline static const float ROTATEANGLE = 6.0f;
-    inline static const float ACCELERATE  = 0.3f;
+	inline static const float VELOCITY    = 200.0f / fps;
+	inline static const float ROTATEANGLE = 120.0f / fps;
+    inline static const float ACCELERATE  = 3.0f / fps;
 
     enum CAR_TYPE {
         RED_CAR = 0, GREEN_CAR, YELLOW_CAR, BLUE_CAR, CAR_TYPE_COUNT
@@ -54,7 +54,6 @@ public:
 	size_t last_check_point  = 0;
 	int lap                = 0;
 	NeuralNetwork brain;
-	sf::Vector2f localEyePosition;
 	Eye eye;
 
 	sf::Vector2f forward{1, 0};
