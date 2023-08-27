@@ -4,7 +4,11 @@
 struct Path: public sf::Drawable {
 	Path(float w, uint32_t c);
 	~Path() = default;
-    bool contains(Vec2f point) const;
+
+    inline bool contains(Vec2f point) const {
+        auto[pos, _] = spline.projected_point(point);
+        return Helper::distance(pos, point) <= width;
+    }
 	void draw(sf::RenderTarget& target, sf::RenderStates state) const override {
         target.draw(vArray, state);
         target.draw(spline, state);

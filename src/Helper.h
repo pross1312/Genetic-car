@@ -112,18 +112,16 @@ namespace Helper {
         return Vec2<T>{ x, y };
     }
 
-    inline Vec2f to_world(const sf::RenderTarget& target, Vec2f position) { // from screen coordinate to world coordinate
-        auto view = target.getView();
-        auto center = view.getCenter();
-        auto size = view.getSize();
-        return position + (center - size/2.0f);
-    }
-
-    inline Vec2f to_world(const sf::RenderTarget& target, float x, float y) { // from screen coordinate to world coordinate
-        auto view = target.getView();
-        auto center = view.getCenter();
-        auto size = view.getSize();
-        return Vec2f(x, y) + (center - size/2.0f);
+    // https://github.com/SFML/SFML/wiki/Source:-Zoom-View-At-%28specified-pixel%29
+    inline void zoom(sf::RenderTarget& window, sf::Vector2i pixel, float zoom) {
+        const sf::Vector2f beforeCoord{ window.mapPixelToCoords(pixel) };
+        sf::View view{ window.getView() };
+        view.zoom(zoom);
+        window.setView(view);
+        const sf::Vector2f afterCoord{ window.mapPixelToCoords(pixel) };
+        const sf::Vector2f offsetCoords{ beforeCoord - afterCoord };
+        view.move(offsetCoords);
+        window.setView(view);
     }
 }
 
