@@ -12,7 +12,7 @@ using namespace std::chrono;
 #define STUCK_TOLERANCE 7
 #define MAX_MOVE_INCREMENT 50
 #define STUCK_COLOR 0xff632eff
-#define SCREEN_MOVE_FACTOR (.7f)
+#define SCREEN_MOVE_FACTOR .7f
 #define MAX_DISTANCE_FROM_BEST_CAR 150
 
 Config config(CONFIG_PATH);
@@ -22,7 +22,7 @@ Config config(CONFIG_PATH);
 // using tournament selection
 // read configuration form config file.
 
-const size_t fps = 80;
+const size_t fps = 60;
 inline size_t tournament_size = 0;
 inline bool training          = false;
 inline bool showeye_line      = false;
@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
             mutation_rate = std::stof(argv[3]);
             assert(std::stoi(argv[4]) >= 0);
             init_population = std::stoi(argv[4]);
-            tournament_size = std::max<size_t>(size_t(init_population/5), 1ull);
+            tournament_size = std::max<size_t>(size_t(init_population/10), 1ull);
             map_file = argv[5];
             agent_file = argv[6];
         }
@@ -210,36 +210,6 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
             try_fix = true;
         }
 
-        window.clear(config.back_ground);
-        window.draw(path);
-        best_car = nullptr;
-        for (size_t i = 0; i < pool_cars.size(); i++) {
-            if (on_moving_cars[i]) {
-                if (path.contains(pool_cars[i].getPosition())) {
-                    pool_cars[i].think(path);
-                    pool_cars[i].move();
-                    pool_cars[i].update(path);
-                    if (showeye_line) pool_cars[i].showeye_line(window, path);
-                    if (!best_car || best_car->get_travel_distance(path) < pool_cars[i].get_travel_distance(path)) best_car = &pool_cars[i];
-                }
-                else {
-                    on_moving_cars[i] = false;
-                    current_alive--;
-                }
-            }
-            window.draw(pool_cars[i]);
-        }
-        if (!best_car) best_car = &*std::max_element(pool_cars.begin() ,pool_cars.end(), [&](const auto& a, const auto& b) {return a.get_travel_distance(path) < b.get_travel_distance(path); });
-        movelefts--;
-
-        auto view = window.getView();
-        auto center_to_bestcar = Helper::distance(best_car->getPosition(), view.getCenter());
-        if (center_to_bestcar > MAX_DISTANCE_FROM_BEST_CAR) {
-            view.move((best_car->getPosition() - view.getCenter()) * SCREEN_MOVE_FACTOR / (float)fps);
-            window.setView(view);
-        }
-        best_car->show_line(window, path);
-
         // end of a generation
         if (current_alive == 0 || movelefts <= 0) {
             best_car->savebrain(agent_file);
@@ -285,6 +255,38 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
             current_alive = init_population;
             movelefts = max_move;
         }
+
+        window.clear(config.back_ground);
+        window.draw(path);
+        best_car = nullptr;
+        for (size_t i = 0; i < pool_cars.size(); i++) {
+            if (on_moving_cars[i]) {
+                if (path.contains(pool_cars[i].getPosition())) {
+                    pool_cars[i].think(path);
+                    pool_cars[i].move();
+                    pool_cars[i].update(path);
+                    if (showeye_line) pool_cars[i].showeye_line(window, path);
+                    if (!best_car || best_car->get_travel_distance(path) < pool_cars[i].get_travel_distance(path)) best_car = &pool_cars[i];
+                    window.draw(pool_cars[i]);
+                }
+                else {
+                    on_moving_cars[i] = false;
+                    current_alive--;
+                }
+            }
+        }
+        movelefts--;
+
+        // if there aren't any moving cars now, pick the least worst one.
+        if (!best_car) best_car = &*std::max_element(pool_cars.begin() ,pool_cars.end(), [&](const auto& a, const auto& b) {return a.get_travel_distance(path) < b.get_travel_distance(path); });
+
+        auto view = window.getView();
+        auto center_to_bestcar = Helper::distance(best_car->getPosition(), view.getCenter());
+        if (center_to_bestcar > MAX_DISTANCE_FROM_BEST_CAR) {
+            view.move((best_car->getPosition() - view.getCenter()) * SCREEN_MOVE_FACTOR / (float)fps);
+            window.setView(view);
+        }
+
 
         auto interval = std::chrono::duration<float, std::chrono::seconds::period>(high_resolution_clock::now() - start_time);
         char buffer[128] {};
