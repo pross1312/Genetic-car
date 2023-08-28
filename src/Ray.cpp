@@ -23,10 +23,10 @@ std::optional<Vec2f> Ray::hit_line(Vec2f A, Vec2f B) const {
 
 std::optional<Vec2f> Ray::cast(const Path& path) const {
     const auto& vArray = path.vArray;
-    unsigned nVertex = vArray.getVertexCount()/2;
+    unsigned n_spline_vertex = path.spline.vArray.getVertexCount();
     float minDistance = 1e9;
     std::optional<Vec2f> hitPoint;
-    for (size_t i = 1; i < nVertex; i++) {
+    for (size_t i = 1; i <= n_spline_vertex; i++) {
         auto p1 = hit_line(vArray[2*(i-1)].position, vArray[2*i].position);
         auto p2 = hit_line(vArray[2*(i-1)+1].position, vArray[2*i+1].position);
         if (p1.has_value()) {

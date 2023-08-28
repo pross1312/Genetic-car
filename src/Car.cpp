@@ -6,6 +6,11 @@
 #define CAR_GAP 163
 #define CAR_SCALE_TO_SCREEN {0.1f, 0.1f}
 #define CAR_ROTATION_TO_POINT_RIGHT 90
+#define CAR_EYE_RAYS 11
+#define RAY_ANGLE 180/CAR_EYE_RAYS
+#define ROTATE_UP 0
+#define ROTATE_DOWN 1
+#define ROTATE_NONE 2
 
 inline bool load_car_textures() {
     for (size_t i = 0; i < Car::CAR_TYPE_COUNT; i++) {
@@ -17,7 +22,7 @@ inline bool load_car_textures() {
 }
 
 Car::Car()
-    : brain{ {15, 3}, relu_activate }, eye{ 12, 15} {
+    : brain{ {CAR_EYE_RAYS, 5, 3}, relu_activate }, eye{ RAY_ANGLE, CAR_EYE_RAYS} {
     if (Car::textures[0] == nullptr) load_car_textures(); // if texture is not loaded, load it
     sprite.setTexture(*Car::textures[rand()%Car::CAR_TYPE_COUNT]);
     reset();
@@ -41,12 +46,12 @@ void Car::reset() {
     sprite.setRotation(CAR_ROTATION_TO_POINT_RIGHT);
     accelerator        = 0;
     forward            = { 1, 0 };
-    rotate_movement    = Rotate::None;
     lap                = 0;
     last_check_point   = 1;
     distance_on_path   = 0.0f;
-    eye.setPosition(sprite.getPosition());
+    rotate_movement[ROTATE_UP] = rotate_movement[ROTATE_DOWN] = false;
     eye.setRotation(0);
+    eye.setPosition(sprite.getPosition());
 }
 
 Car& Car::operator=(const Car& b) {
@@ -71,11 +76,11 @@ void Car::think(const Path& path) {
     VectorXf output = brain.forward_propagate(input);
     unsigned decision = std::max_element(output.data, output.data + output.size()) - output.data;
     switch (decision) {
-        case 0: rotate_movement = Rotate::Up;
+        case ROTATE_UP: rotate_movement[ROTATE_UP] = true;
                 break;
-        case 1: rotate_movement = Rotate::Down;
+        case ROTATE_DOWN: rotate_movement[ROTATE_DOWN] = true;
                 break;
-        case 2: rotate_movement = Rotate::None;
+        case ROTATE_NONE: rotate_movement[ROTATE_UP] = rotate_movement[ROTATE_DOWN] = false;
                 break;
         default: assert(false && "Unknown decision");
     }
@@ -83,17 +88,12 @@ void Car::think(const Path& path) {
 
 void Car::control(const sf::Event& event) {
     if (event.type == sf::Event::KeyPressed) {
-        if (event.key.code == sf::Keyboard::A) {
-            rotate_movement = Rotate::Up;
-        }
-        else if (event.key.code == sf::Keyboard::D) {
-            rotate_movement = Rotate::Down;
-        }
+        if (event.key.code == sf::Keyboard::A) rotate_movement[ROTATE_UP] = true;
+        if (event.key.code == sf::Keyboard::D) rotate_movement[ROTATE_DOWN] = true;
     }
     else if (event.type == sf::Event::KeyReleased) {
-        if (event.key.code == sf::Keyboard::A || event.key.code == sf::Keyboard::D) {
-            rotate_movement = Rotate::None;
-        }
+        if (event.key.code == sf::Keyboard::A) rotate_movement[ROTATE_UP] = 0;
+        if (event.key.code == sf::Keyboard::D) rotate_movement[ROTATE_DOWN] = 0;
     }
 }
 
@@ -113,11 +113,11 @@ void Car::update(const Path& path) {
 
 
 void Car::move() {
-    if (rotate_movement == Rotate::Up) {
+    if (rotate_movement[ROTATE_UP]) {
         rotate(ROTATEANGLE);
         accelerator = 0.0f;
     }
-    else if (rotate_movement == Rotate::Down) {
+    else if (rotate_movement[ROTATE_DOWN]) {
         rotate(-ROTATEANGLE);
         accelerator = 0.0f;
     } else {
@@ -144,7 +144,7 @@ void Car::loadbrain(const char* fName) {
 
 void Car::rotate(float angle) {
     sprite.rotate(-angle);
-    eye.setPosition(sprite.getPosition());
     forward = Helper::rotated(forward, angle);
     eye.rotate(angle);
+    eye.setPosition(sprite.getPosition());
 }

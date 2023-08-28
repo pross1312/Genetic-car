@@ -14,6 +14,8 @@ using namespace std::chrono;
 #define STUCK_COLOR 0xff632eff
 #define SCREEN_MOVE_FACTOR .7f
 #define MAX_DISTANCE_FROM_BEST_CAR 150
+#define TRAIN_MODE 1
+#define COMPETE_MODE 2
 
 Config config(CONFIG_PATH);
 
@@ -24,73 +26,102 @@ Config config(CONFIG_PATH);
 
 const size_t fps = 60;
 inline size_t tournament_size = 0;
-inline bool training          = false;
 inline bool showeye_line      = false;
-inline float mutation_rate    = 0.0f;
-inline size_t init_population = 0;
+inline float mutation_rate    = 0.5f;
+inline size_t init_population = 100;
 inline size_t stuck_count     = 0;
 inline bool try_fix           = false;
-inline const char* map_file   = NULL;
-inline const char* agent_file = NULL;
+inline const char* map_file   = "resources/sample_path";
+inline const char* agent_file = "BestCar";
 inline Car* best_car          = nullptr;
 inline size_t max_move        = 200;
+inline int mode               = TRAIN_MODE;
+inline int seed               = time(0);
+inline bool load_agent        = false;
 inline sf::Font font;
 void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path);
 void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path);
 
 void usage() {
-    printf("--Usage--\n");
-    printf("Car <SubCommand> [parameter]\n");
-    printf("     Train <seed> <mutation rate> <initial popoulation> <map file> <out file>\n");
-    printf("     Compete <agent file> <map file>\n");
-    printf("Example: Car Compete BestCar resources/sample_path\n");
-    printf("         Car Train 123 0.5 100 resources/sample_path BestCar\n");
+    printf("Usage: Car <Subcommand> [Options]\n");
+    printf("\
+Train   -seed  <int> : random generator seed.              [default = current_time]\n\
+        -init  <int> : initial population.                 [default = 100]\n\
+        -map   <path>: map file.                           [default = 'resources/sample_path']\n\
+        -agent <path>: file to save best performance agent.[default = 'BestCar']\n\
+        -load  <bool>: load previous agent or not.         [default = 0]\n\
+\n\
+Compete -agent <path>: agent file.                         [default = 'BestCar']\n\
+        -map   <path>: map file.                           [default = 'resources/sample_path']\n");
 }
 
-int main(int argc, char** argv) {
-    if (argc <= 1) {
-        usage();
+const char* next_arg(const char** argv, int argc) {
+    static int count = 1;
+    if (count < argc) return argv[count++];
+    return nullptr;
+}
+
+int main(int argc, const char** argv) {
+    const char* next;
+    if (!(next = next_arg(argv, argc))) {
         fprintf(stderr, "Error: no subcommand provided\n");
+        usage();
+        exit(EXIT_FAILURE);
+    }
+    if (strcmp(next, "Compete") == 0) mode = COMPETE_MODE;
+    else if (strcmp(next, "Train") == 0) mode = TRAIN_MODE;
+    else {
+        fprintf(stderr, "Error: invalid subcommand %s.\n", next);
+        usage();
         exit(EXIT_FAILURE);
     }
     try {
-        if (strcmp(argv[1], "Train") == 0) {
-            training = true;
-            srand(std::stoi(argv[2]));
-            mutation_rate = std::stof(argv[3]);
-            assert(std::stoi(argv[4]) >= 0);
-            init_population = std::stoi(argv[4]);
-            tournament_size = std::max<size_t>(size_t(init_population/10), 1ull);
-            map_file = argv[5];
-            agent_file = argv[6];
+        next = next_arg(argv, argc);
+        while (next) {
+            if (mode == TRAIN_MODE) {
+                if (strcmp(next, "-seed")        == 0 && (next = next_arg(argv, argc))) seed            = std::stoi(next);
+                else if (strcmp(next, "-init")   == 0 && (next = next_arg(argv, argc))) init_population = std::stoi(next);
+                else if (strcmp(next, "-map")    == 0 && (next = next_arg(argv, argc))) map_file        = next;
+                else if (strcmp(next, "-agent")  == 0 && (next = next_arg(argv, argc))) agent_file      = next;
+                else if (strcmp(next, "-mutate") == 0 && (next = next_arg(argv, argc))) mutation_rate   = std::stof(next);
+                else if (strcmp(next, "-load")   == 0 && (next = next_arg(argv, argc))) load_agent      = std::stoi(next);
+                else {
+                    fprintf(stderr, "Error: unregconized argument %s.\n", next);
+                    usage();
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else if (mode == COMPETE_MODE) {
+                if (strcmp(next, "-map")        == 0 && (next = next_arg(argv, argc))) map_file   = next;
+                else if (strcmp(next, "-agent") == 0 && (next = next_arg(argv, argc))) agent_file = next;
+                else {
+                    fprintf(stderr, "Error: unregconized argument %s.\n", next);
+                    usage();
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else assert(false);
+            next = next_arg(argv, argc);
         }
-        else if (strcmp(argv[1], "Compete") == 0) {
-            agent_file = argv[2];
-            map_file = argv[3];
-        }
-        else {
-            usage();
-            fprintf(stderr, "ERROR: invalid subcommand\n");
-        }
-    } catch (const std::exception& e) {
-        printf("Error: %s\n", e.what());
+    } catch (std::exception& e) {
+        fprintf(stderr, "Error: %s\n", e.what());
         exit(EXIT_FAILURE);
     }
+
+    Path path(config.path_width, 0x485965ff);
+    try { path.load(map_file); }
+    catch(const std::exception& e) {
+        fprintf(stderr, "Can't read map %s.\nERROR: %s\n", map_file, e.what());
+        exit(1);
+    }
+
     sf::RenderWindow window(sf::VideoMode(config.screen_w, config.screen_h), "CarGenetic");
     window.setFramerateLimit(60);
     sf::Event event;
-    Path path(config.path_width, 0x485965ff);
     window.setFramerateLimit(fps);
     font.loadFromFile(FONT_PATH);
-    try {
-        path.load(map_file);
-    }
-    catch(const std::exception& e) {
-        printf("Can't read map file.\nERROR: %s\n", e.what());
-        exit(1);
-    }
-    if (training) handle_training_mode(window, event, path);
-    else          handle_compete_mode(window, event, path);
+    if (mode == TRAIN_MODE) handle_training_mode(window, event, path);
+    else                    handle_compete_mode(window, event, path);
     return 0;
 }
 
@@ -134,7 +165,6 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
             if (path.contains(human.getPosition())) {
                 human.move();
                 human.update(path);
-                human.showeye_line(window, path);
             }
             if (path.contains(agent.getPosition())) {
                 agent.think(path);
@@ -167,7 +197,7 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
         on_moving_cars.push_back(true);
     }
     try {
-        pool_cars[0].loadbrain(agent_file);
+        if (load_agent) pool_cars[0].loadbrain(agent_file);
     } catch (const std::exception& e) {
         printf("%s\n", e.what());
     }

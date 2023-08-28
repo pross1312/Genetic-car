@@ -3,11 +3,6 @@
 #include "Eye.h"
 #include <SFML/Graphics.hpp>
 const extern size_t fps;
-enum Rotate {
-	None,
-	Up,
-	Down,
-};
 
 struct Car: public sf::Drawable {
 public:
@@ -38,7 +33,6 @@ public:
 	inline void setPosition(const sf::Vector2f& position)                 { sprite.setPosition(position); eye.setPosition(position); }
 	inline void setPosition(float x, float y)                             { setPosition(sf::Vector2f{ x, y }); }
 	inline sf::Vector2f getPosition() const                               { return sprite.getPosition(); }
-    Rotate rotate_movement;
 
 	inline static const float VELOCITY    = 200.0f / fps;
 	inline static const float ROTATEANGLE = 120.0f / fps;
@@ -49,6 +43,7 @@ public:
     };
 	inline static sf::Texture* textures[CAR_TYPE_COUNT] {};
 
+    bool rotate_movement[2];
     float distance_on_path = 0.0f;
 	float accelerator      = 0.0f;
 	size_t last_check_point  = 0;
