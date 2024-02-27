@@ -25,7 +25,7 @@ Config config(CONFIG_PATH);
 // read configuration form config file.
 
 const size_t fps = 60;
-inline size_t tournament_size = 0;
+inline size_t tournament_size = 20;
 inline bool showeye_line      = false;
 inline float mutation_rate    = 0.5f;
 inline size_t init_population = 100;
@@ -45,11 +45,12 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
 void usage() {
     printf("Usage: Car <Subcommand> [Options]\n");
     printf("\
-Train   -seed  <int> : random generator seed.              [default = current_time]\n\
-        -init  <int> : initial population.                 [default = 100]\n\
-        -map   <path>: map file.                           [default = 'resources/sample_path']\n\
-        -agent <path>: file to save best performance agent.[default = 'BestCar']\n\
-        -load  <bool>: load previous agent or not.         [default = 0]\n\
+Train   -seed   <int>   : random generator seed.              [default = current_time]\n\
+        -init   <int>   : initial population.                 [default = 100]\n\
+        -map    <path>  : map file.                           [default = 'resources/sample_path']\n\
+        -agent  <path>  : file to save best performance agent.[default = 'BestCar']\n\
+        -mutate <float> : file to save best performance agent.[default = 0.5]\n\
+        -load   <bool>  : load previous agent or not.         [default = 0]\n\
 \n\
 Compete -agent <path>: agent file.                         [default = 'BestCar']\n\
         -map   <path>: map file.                           [default = 'resources/sample_path']\n");
@@ -148,7 +149,11 @@ void handle_compete_mode(sf::RenderWindow& window, sf::Event& event, Path& path)
                     human.setPosition(start_position);
                     human.rotate(start_rotation);
                     start = false;
-                } else {
+                }
+                else if (event.key.code == sf::Keyboard::Escape) {
+                    window.close();
+                }
+                else {
                     start = true;
                 }
             }
@@ -217,6 +222,8 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
                     max_move -= MAX_MOVE_INCREMENT;
                 else if (event.key.code == sf::Keyboard::S)
                     showeye_line = !showeye_line;
+                else if (event.key.code == sf::Keyboard::Escape)
+                    window.close();
             } break;
             case sf::Event::MouseWheelScrolled: {
                 auto view = window.getView();
@@ -278,7 +285,8 @@ void handle_training_mode(sf::RenderWindow& window, sf::Event& event, Path& path
             for (auto& c : pool_cars) {
                 c.reset();
                 c.setPosition(start_position);
-                c.rotate(start_rotation); //+ (rand()%20) * (rand()%100 >= 50 ? -1 : 1));
+                // c.rotate(start_rotation + (rand()%20) * (rand()%100 >= 50 ? -1 : 1));
+                c.rotate(start_rotation);
             }
             current_alive = init_population;
             movelefts = max_move;

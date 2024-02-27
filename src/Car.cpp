@@ -22,7 +22,7 @@ inline bool load_car_textures() {
 }
 
 Car::Car()
-    : brain{ {CAR_EYE_RAYS, 5, 3}, relu_activate }, eye{ RAY_ANGLE, CAR_EYE_RAYS} {
+    : brain{ {CAR_EYE_RAYS, 7, 3}, relu_activate }, eye{ RAY_ANGLE, CAR_EYE_RAYS} {
     if (Car::textures[0] == nullptr) load_car_textures(); // if texture is not loaded, load it
     sprite.setTexture(*Car::textures[rand()%Car::CAR_TYPE_COUNT]);
     reset();
